@@ -1,0 +1,13 @@
+The payment service is a deterministic charge test double on port 8005. `POST /charge` accepts a positive amount, refuses amounts of 100000 minor units or more with "Amount exceeds limit", and otherwise refuses a card ending in `0000` with "Card declined". Accepted charges return a UUID reference. Every outcome is stored in `payment_db.charges`, and Swagger is at `/docs`.
+
+Payment tests: **6 passed**. Catalog (6) and cart (9) also passed. Identity and checkout did not collect in this environment because `email-validator` is not installed.
+
+Files changed:
+
+- `payment/main.py`
+- `payment/requirements.txt`
+- `payment/models.py`
+- `payment/routes.py`
+- `payment/db.py`
+- `payment/tests/conftest.py`
+- `payment/tests/test_payment.py`The environment search was stopped because it was scanning the whole disk. The payment service was already implemented and tested with the system Python that has the required packages: 6 payment tests passed.

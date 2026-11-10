@@ -9,7 +9,7 @@ involved_repos:
 depends_on: []
 owner: goos
 lease_until: '2026-11-12T07:38:34.163229+00:00'
-revision: 28
+revision: 29
 hub_sha: null
 ticket_hash: fbde0e9071b45b1d
 jira_hash: fbde0e9071b45b1d
@@ -106,6 +106,9 @@ history:
 - node: dev
   note: done 04-app
   at: '2026-11-10T11:28:25.297604+00:00'
+- node: dev
+  note: done 05-app
+  at: '2026-11-10T11:33:50.783625+00:00'
 ---
 
 # Feature state
