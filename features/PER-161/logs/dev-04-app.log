@@ -1,0 +1,17 @@
+Checkout now orchestrates cart, payment, and order for PER-161 story 04-app. A guest or signed-in shopper can check out on port 8004, and the service charges the cart total it just received.
+
+- Payment refusal returns `{status: "refused", reason}` and leaves the cart and orders untouched.
+- Payment acceptance creates the order, then deletes the cart. If that delete fails, the paid order is still returned.
+- Swagger is at `/docs`. The service only opens `checkout_db`, which has no collections in this version.
+
+Checkout tests: 14 passed. Cart (9), catalog (6), and identity (5) also passed when run separately.
+
+**Files changed**
+
+- `checkout/main.py`
+- `checkout/routes.py`
+- `checkout/models.py`
+- `checkout/db.py`
+- `checkout/requirements.txt`
+- `checkout/tests/conftest.py`
+- `checkout/tests/test_checkout.py`
