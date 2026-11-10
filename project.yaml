@@ -1,0 +1,46 @@
+# Written by `adlc setup`. Shared project config. Secrets belong in /home/goos/projects/adlc-package/.env.
+project: ecom
+schema_version: 1
+ticket_store: linear
+code_host: github
+llm:
+  provider: anthropic
+  model_small: claude-haiku-4-5-20251001
+  model_mid: claude-sonnet-4-5-20250929
+  model_strongest: claude-sonnet-4-5-20250929
+  prices_usd_per_mtok:
+    claude-sonnet-4-5-20250929:
+      input: 3.0
+      output: 15.0
+      cache_read: 0.3
+      cache_creation: 3.75
+    claude-haiku-4-5-20251001:
+      input: 1.0
+      output: 5.0
+      cache_read: 0.1
+      cache_creation: 1.25
+cursor:
+  executor: cli
+  mode_default: auto
+  agent_bin: agent
+repos:
+  app:
+    path_key: app
+    role: app
+    base: main
+    commands:
+      test: ''
+      lint: ''
+dependency_order:
+- app
+policies:
+  plan_review: true
+  spec_review: hub_pr
+  feature_pr_agent_review: true
+  feature_pr_human_review: required
+  human_mode: false
+  lease_hours: 48
+budgets:
+  per_feature_anthropic_usd: 15
+linear:
+  team_id: 4d7ec692-ad55-4138-a986-119b25f08478

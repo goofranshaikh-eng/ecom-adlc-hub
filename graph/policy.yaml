@@ -1,0 +1,11 @@
+# Override default ADLC graph policy here.
+# The LLM planner picks which roles each feature needs (ADR 003); step order
+# comes from role cards, not edges.
+#   nodes:  allowed roles — leave one out to stop the planner from choosing it
+#   loops:  retry limits (critic_fix, dev_inner, pr_revision)
+#   tracks: fallback templates when the planner is unavailable (dry-run) or fails
+loops:
+  critic_fix:
+    max: 2
+  dev_inner:
+    max: 3
