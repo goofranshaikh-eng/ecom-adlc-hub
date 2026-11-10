@@ -1,0 +1,17 @@
+The order service is in place and stores paid orders in its own `order_db`.
+
+`POST /orders` validates the body, requires `shopper_id` or `email`, and returns `201` with `order_id`. `GET /orders/:order_id` returns the stored id, lines, total, payment reference, ship-to address, and an ISO timestamp. Swagger UI is at `/docs` on port `8006`.
+
+Checked against MongoDB on port 8006: guest and signed-in creates, lookup, `404` for a missing id, `400` for a bad id, and the Swagger page title. Test orders were removed afterward. Existing Python tests did not run because `pymongo` is not installed here; they failed at import rather than hanging in fixture setup.
+
+Files added:
+
+- `order/index.js`
+- `order/routes.js`
+- `order/models.js`
+- `order/db.js`
+- `order/package.json`
+- `order/package-lock.json`
+- `order/.gitignore`
+
+Checkout still forwards cart lines with `price_snapshot_minor_units`. This service expects `price_minor_units` on each line, as the story specifies.
