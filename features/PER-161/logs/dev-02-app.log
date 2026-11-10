@@ -1,0 +1,14 @@
+The catalog service is in place for story 02-app. It serves product search and fetch on its own `catalog_db`, and Swagger is available at `/docs`.
+
+Search is `GET /products/search?q=`. A missing or empty `q` returns 400. Otherwise the service matches `name` with a case-insensitive regex and returns the name, `price_minor_units`, and `sellable`. `GET /products/{product_id}` returns the same fields, including the price when `sellable` is false. An unknown id returns 404, and a malformed id returns 400. The service listens on port 8002 unless `PORT` is set.
+
+Catalog tests: 6 passed. Identity tests were not re-run to completion because that service still needs `email-validator`, which is unchanged by this story.
+
+**Files changed**
+- `catalog/main.py`
+- `catalog/requirements.txt`
+- `catalog/models.py`
+- `catalog/routes.py`
+- `catalog/db.py`
+- `catalog/tests/conftest.py`
+- `catalog/tests/test_catalog.py`
