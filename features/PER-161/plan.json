@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "key": "PER-161",
+  "source": "llm",
+  "summary": "Multi-service e-commerce backend with catalog, cart, checkout, payment, order, and identity; requires architecture design for service boundaries, API contracts, and data isolation, plus thorough story breakdown.",
+  "track_hint": "quick",
+  "loop": "feature_with_architecture",
+  "delivery": "delivery",
+  "pr_fix": [
+    "pr_fix_minor",
+    "pr_fix_moderate"
+  ],
+  "loops": [
+    "feature_with_architecture",
+    "delivery",
+    "pr_fix_minor",
+    "pr_fix_moderate"
+  ],
+  "steps": [
+    {
+      "node": "analyst",
+      "activity": "requirements",
+      "why": "Convert the detailed job story into formal requirements with clear Given/When/Then acceptance criteria.",
+      "instructions": "The ticket already has well-formed AC; validate and formalize them in requirements.md, preserving the service ownership table and boundaries.",
+      "auto": false,
+      "status": "done",
+      "rerun": false
+    },
+    {
+      "node": "architect",
+      "activity": "hld",
+      "why": "Six services with separate databases, API contracts between them, and data isolation rules require high-level design and API specs.",
+      "instructions": "Design the inter-service contracts (cart→catalog price check, checkout→cart+payment, order storage), data schemas per service, and the payment test double. Document how services never share databases.",
+      "auto": false,
+      "status": "done",
+      "rerun": false
+    },
+    {
+      "node": "scrum_master",
+      "activity": "breakdown",
+      "why": "Work spans six services across Python FastAPI and Node.js, each with its own MongoDB database and Swagger UI.",
+      "instructions": "Break down by service: identity, catalog, cart, checkout, payment (all Python/FastAPI), and order (Node.js). Each story delivers one service's endpoints, database, and Swagger UI.",
+      "auto": false,
+      "status": "done",
+      "rerun": false
+    },
+    {
+      "node": "designer",
+      "activity": "lld",
+      "why": "Each service needs concrete file plans, FastAPI route definitions, MongoDB schemas, and Swagger configuration before coding.",
+      "instructions": "For each service story: specify the directory structure, route handlers, Pydantic models (or Node.js equivalents for order), MongoDB collections, and how to expose /docs.",
+      "auto": false,
+      "status": "done",
+      "rerun": false
+    },
+    {
+      "node": "test_architect",
+      "activity": "tests",
+      "why": "Eleven acceptance criteria with edge cases (unsellable products, payment refusal, quantity zero, data isolation) need explicit test cases.",
+      "instructions": "Map each AC to integration tests: catalog sellability, cart total calculation, checkout flows (guest and signed-in), payment acceptance/refusal, order retrieval, and database isolation checks.",
+      "auto": false,
+      "status": "done",
+      "rerun": false
+    },
+    {
+      "node": "critic",
+      "activity": "consistency_check",
+      "why": "Requirements, HLD (service contracts), breakdown (six services), LLD (per-service file plans), and tests must all agree on API boundaries and data ownership.",
+      "instructions": "Cross-check that no service accesses another's database, API contracts in HLD match the routes in LLD, and test cases cover all eleven AC plus the Swagger requirement.",
+      "auto": false,
+      "status": "pending",
+      "rerun": false
+    },
+    {
+      "node": "merge_pack",
+      "activity": "pack",
+      "why": "Pack per-ticket specs into merged_plan.md for review.",
+      "instructions": "",
+      "auto": true,
+      "status": "pending",
+      "rerun": false
+    },
+    {
+      "node": "architect_gate",
+      "activity": "review",
+      "why": "Human approval of specs and this plan before Dev.",
+      "instructions": "",
+      "auto": true,
+      "status": "done",
+      "rerun": false
+    },
+    {
+      "node": "dev",
+      "activity": null,
+      "why": "Loop delivery.",
+      "instructions": "",
+      "auto": true,
+      "status": "pending",
+      "rerun": false
+    },
+    {
+      "node": "pre_pr_qa",
+      "activity": null,
+      "why": "Loop delivery.",
+      "instructions": "",
+      "auto": true,
+      "status": "pending",
+      "rerun": false
+    },
+    {
+      "node": "open_pr",
+      "activity": null,
+      "why": "Loop delivery.",
+      "instructions": "",
+      "auto": true,
+      "status": "pending",
+      "rerun": false
+    },
+    {
+      "node": "pr_review",
+      "activity": null,
+      "why": "Loop delivery.",
+      "instructions": "",
+      "auto": true,
+      "status": "pending",
+      "rerun": false
+    },
+    {
+      "node": "merge",
+      "activity": null,
+      "why": "Loop delivery.",
+      "instructions": "",
+      "auto": true,
+      "status": "pending",
+      "rerun": false
+    }
+  ],
+  "skipped": [
+    {
+      "node": "tpm_gate",
+      "why": "The ticket already states clear scope, acceptance criteria, boundaries, and what services exist; no product ambiguity to resolve."
+    }
+  ],
+  "suggested_roles": [],
+  "suggested_loops": [],
+  "notes": [],
+  "created_at": "2026-11-10T07:30:31.586963+00:00",
+  "version": 1,
+  "trigger": "ticket",
+  "gate": null,
+  "feedback": [],
+  "feedback_errors": [],
+  "seen_feedback_ids": [],
+  "change_summary": "",
+  "changes": null,
+  "addressed": [],
+  "unresolved_questions": [],
+  "requires_review": true
+}

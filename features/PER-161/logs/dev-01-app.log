@@ -1,0 +1,17 @@
+The identity service for story 01-app is in place. It signs shoppers in, looks them up by id, and serves Swagger at `/docs`.
+
+- `POST /sign-in` checks the email and plaintext password in `identity_db.shoppers` and returns `shopper_id` plus the stub token `stub_token_v1`, or `401` with `Invalid credentials`.
+- `GET /shoppers/{shopper_id}` returns the shopper email, `400` for a bad ObjectId, or `404` when the shopper is missing.
+- The service uses only `identity_db`, with a unique index on `email`. Password checks are marked `[STUB_AUTH]` and the token `[STUB_TOKEN]`. Swagger notes that every endpoint is public.
+
+**Files changed**
+
+- `identity/main.py`
+- `identity/routes.py`
+- `identity/models.py`
+- `identity/db.py`
+- `identity/requirements.txt` (`email-validator` is included because `EmailStr` needs it)
+- `identity/tests/conftest.py`
+- `identity/tests/test_identity.py`
+
+**Tests:** 5 passed in 0.44s (sign-in success, invalid credentials, shopper lookup, invalid id, Swagger/OpenAPI). MongoDB is mocked in those tests. Starting `python main.py` still connects to `MONGODB_URI` (default `mongodb://localhost:27017`) and creates the email index on import.
