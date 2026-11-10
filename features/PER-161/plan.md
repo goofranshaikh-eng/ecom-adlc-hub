@@ -26,9 +26,9 @@ Multi-service e-commerce backend with catalog, cart, checkout, payment, order, a
    - focus: Cross-check that no service accesses another's database, API contracts in HLD match the routes in LLD, and test cases cover all eleven AC plus the Swagger requirement.
 7. [ ] **merge_pack (pack)** _(auto)_ — Pack per-ticket specs into merged_plan.md for review.
 8. [x] **architect_gate (review)** _(auto)_ — Human approval of specs and this plan before Dev.
-9. [ ] **dev** _(auto)_ — Loop delivery.
-10. [ ] **pre_pr_qa** _(auto)_ — Loop delivery.
-11. [ ] **open_pr** _(auto)_ — Loop delivery.
+9. [x] **dev** _(auto)_ — Loop delivery.
+10. [x] **pre_pr_qa** _(auto)_ — Loop delivery.
+11. [x] **open_pr** _(auto)_ — Loop delivery.
 12. [ ] **pr_review** _(auto)_ — Loop delivery.
 13. [ ] **merge** _(auto)_ — Loop delivery.
 
