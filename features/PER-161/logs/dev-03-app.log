@@ -1,0 +1,20 @@
+The cart service is in place for story 03-app. It keeps its own `cart_db`, checks sellability and price with the catalog over HTTP, and exposes Swagger at `/docs`.
+
+- `POST /cart` creates a cart.
+- `POST /cart/{cart_id}/items` snapshots the catalog price and refuses an unsellable product with a reason.
+- `PATCH /cart/{cart_id}/items/{product_id}` recomputes the total and drops a line when the quantity is zero.
+- `GET` and `DELETE` read or remove that cart only.
+
+`cart/tests`: 9 passed. `catalog/tests`: 6 passed. `identity/tests` still fails to collect because `email-validator` is not installed; that failure is unchanged.
+
+Files changed:
+
+- `cart/main.py`
+- `cart/requirements.txt`
+- `cart/models.py`
+- `cart/routes.py`
+- `cart/db.py`
+- `cart/tests/conftest.py`
+- `cart/tests/test_cart.py`Those two filesystem searches were stopped on purpose. They were only looking for the Python environment and were not part of the cart service.
+
+The story implementation is unchanged: the cart service is in place, and its 9 tests passed.
