@@ -75,23 +75,29 @@
 
 2. **`checkout/models.py`**
    - Add `CheckoutLine(BaseModel)` with `product_id: str`, `quantity: int`, `price_snapshot_minor_units: int`
-   - Add `CheckoutRecord(BaseModel)` with `checkout_id: str`, `payment_reference: str`, `cart_id: str`, `shopper_id: Optional[str]`, `email: Optional[str]`, `ship_to: ShipTo`, `lines: List[CheckoutLine]`, `total_minor_units: int`, `status: Literal["accepted", "order_created", "cart_cleared", "refunded"]`, `order_id: Optional[str]`, `created_at: datetime`, `updated_at: datetime`
+   - Add `CheckoutRecord(BaseModel)` with `checkout_id: str`, `payment_reference: str`, `cart_id: str`, `shopper_id: Optional[str]`, `email: Optional[str]`, `ship_to: ShipTo`, `lines: List[CheckoutLine]`, `total_minor_units: int`, `status: Literal["pending", "accepted", "refused", "order_created", "cart_cleared", "refund_pending", "refunded"]`, `order_id: Optional[str]`, `created_at: datetime`, `updated_at: datetime`
+
    - Add `OutboxRow(BaseModel)` with `event_type: Literal["OrderRequested", "RefundRequested"]`, `payload: dict`, `payment_reference: str`, `published: bool`, `published_at: Optional[datetime]`, `created_at: datetime`
    - Add `CheckoutCreateResponse(BaseModel)` with `checkout_id: str`, `status: Literal["accepted", "refused"]`, `reason: Optional[str]`, and `@model_validator` to enforce `reason` is present when status is `"refused"`
    - Tests: all tests that call `POST /checkout` validate the response schema
 
 3. **`checkout/routes.py`**
    - Modify `POST /checkout` endpoint (lines 52–120):
-     - After payment accepts (line 72, `payment_response.status_code == 200`):
-       - Generate `checkout_id = str(uuid.uuid4())`
-       - Build `CheckoutRecord` from `body`, `cart_lines`, `cart_total`, and `payment_data["reference"]`
-       - Build `OutboxRow` with `event_type: "OrderRequested"`, payload matching HLD schema (see note below on `price_snapshot_minor_units`)
-       - Insert both to MongoDB atomically (checkout first, then outbox; rollback checkout on outbox failure)
+     - Before calling payment (after cart fetch succeeds):
+       - Query `checkouts_collection.find_one({"cart_id": body.cart_id, "status": {"$in": ["accepted", "order_created", "cart_cleared"]}})`
+       - If found, return `CheckoutCreateResponse(checkout_id=existing["checkout_id"], status="accepted")` without calling payment
+     - If no existing checkout, generate `payment_reference = str(uuid.uuid4())`
+     - Insert a pending checkout: `checkouts_collection.insert_one({checkout_id, payment_reference, cart_id, shopper_id, email, ship_to, lines, total_minor_units, status: "pending", order_id: None, created_at: now(), updated_at: now()})`
+     - Call `POST /charge` with `{"amount_minor_units": cart_total, "payment_reference": payment_reference}`
+     - If payment refuses:
+       - Update checkout: `checkouts_collection.update_one({"checkout_id": checkout_id}, {"$set": {"status": "refused", "updated_at": now()}})`
+       - Return `CheckoutCreateResponse(checkout_id=checkout_id, status="refused", reason=payment_data["reason"])`
+     - If payment accepts:
+       - Build `OutboxRow` with `event_type: "OrderRequested"`, payload matching HLD schema (map `price_snapshot_minor_units` to `price_minor_units` in payload)
+       - Insert outbox row: `outbox_collection.insert_one(outbox_row.model_dump(by_alias=True))`
+       - On outbox insert failure: delete pending checkout, raise `HTTPException(status_code=500, detail="Failed to store outbox")`
+       - Update checkout: `checkouts_collection.update_one({"checkout_id": checkout_id}, {"$set": {"status": "accepted", "updated_at": now()}})`
        - Return `CheckoutCreateResponse(checkout_id=checkout_id, status="accepted")`
-     - Add idempotency check after payment accepts (line 73):
-       - Query `checkouts_collection.find_one({"payment_reference": payment_data["reference"]})`
-       - If found and `status` in `["accepted", "order_created", "cart_cleared"]`, return existing `CheckoutCreateResponse(checkout_id=existing["checkout_id"], status="accepted")`
-       - If found and `status == "refunded"`, raise `HTTPException(status_code=400, detail="Checkout was refunded, cannot retry")`
      - Remove order service HTTP call (lines 90–103)
      - Remove cart deletion HTTP call (lines 105–115)
    - Import additions: `import uuid`, `from datetime import datetime`, `from bson import ObjectId`, `from db import checkouts_collection, outbox_collection`, `from models import CheckoutCreateResponse, CheckoutRecord, OutboxRow, CheckoutLine`
@@ -101,8 +107,6 @@
    - Add `pika` (RabbitMQ client for Python)
    - Full list after: `fastapi`, `uvicorn`, `pymongo`, `pydantic`, `httpx`, `email-validator`, `pika`
    - Tests: no test validates `requirements.txt` directly; relay and completion checker tests fail if `pika` is missing
-
----
 
 ## Interfaces
 
@@ -225,7 +229,7 @@
 - Response: `{order_id: str, status: "paid"}` or `{status: "refused", reason: str}`
 
 **After:**
-- Response: `{checkout_id: str, status: "accepted"}` or `{status: "refused", reason: str}`
+- Response: `{checkout_id: str, status: "accepted"}` or `{checkout_id: str, status: "refused", reason: str}`
 - `order_id` is no longer present in the response (order not created yet)
 - `checkout_id` is a UUID generated by checkout
 
@@ -234,10 +238,9 @@
 - 500: Cart, payment, or order service unavailable
 
 **New behavior:**
-- Idempotency: repeated POST with the same payment reference returns the existing `checkout_id` and `status: "accepted"` (no second charge, no second outbox row)
-- Returns immediately after inserting checkout and outbox (does not wait for order service)
-
----
+- Idempotency: before calling payment, checkout queries `checkouts_collection.find_one({"cart_id": cart_id, "status": {"$in": ["accepted", "order_created", "cart_cleared"]}})`. If found, returns the existing `checkout_id` and `status: "accepted"` without calling payment
+- After payment accepts, checkout inserts a pending checkout, then calls payment with a new `payment_reference`, then inserts the outbox row and updates the checkout to `"accepted"`
+- Returns immediately after updating checkout status (does not wait for order service)
 
 ### Python Module: `checkout/outbox.py`
 
@@ -389,41 +392,115 @@ except PyMongoError:
 
 ### Idempotency: Duplicate Checkout Submission
 
-**Goal:** A repeated `POST /checkout` with the same payment reference does not charge twice or insert a second checkout/outbox row.
+**Goal:** A repeated `POST /checkout` with the same `cart_id` does not charge twice or insert a second checkout/outbox row.
 
-**Key:** `payment_reference` (returned by payment service after accepting the charge)
+**Key:** `cart_id` and checkout `status`
 
 **Algorithm:**
-1. Call `POST /charge` (payment service)
-2. If payment refuses, return `CheckoutCreateResponse(status="refused", reason=...)`
-3. If payment accepts:
-   - `payment_reference = payment_data["reference"]`
-   - Query `checkouts_collection.find_one({"payment_reference": payment_reference})`
-   - If found:
-     - If `status` in `["accepted", "order_created", "cart_cleared"]`: return `CheckoutCreateResponse(checkout_id=existing["checkout_id"], status="accepted")`
-     - If `status == "refunded"`: raise `HTTPException(status_code=400, detail="Checkout was refunded, cannot retry")`
-   - If not found: insert checkout + outbox, return `CheckoutCreateResponse(checkout_id=checkout_id, status="accepted")`
+1. Fetch cart from cart service
+2. Query `checkouts_collection.find_one({"cart_id": body.cart_id, "status": {"$in": ["accepted", "order_created", "cart_cleared"]}})`
+3. If found: return `CheckoutCreateResponse(checkout_id=existing["checkout_id"], status="accepted")` (no payment call)
+4. If not found:
+   - Generate `checkout_id = str(uuid.uuid4())` and `payment_reference = str(uuid.uuid4())`
+   - Insert pending checkout: `checkouts_collection.insert_one({checkout_id, payment_reference, cart_id, ..., status: "pending", created_at: now(), updated_at: now()})`
+   - Call `POST /charge` with `{"amount_minor_units": cart_total, "payment_reference": payment_reference}`
+   - If payment refuses: update checkout to `"refused"`, return refused response
+   - If payment accepts:
+     - Insert outbox row (rollback pending checkout on failure)
+     - Update checkout to `"accepted"`
+     - Return `CheckoutCreateResponse(checkout_id=checkout_id, status="accepted")`
 
 **Code:**
 ```python
-payment_reference = payment_data["reference"]
-
-existing_checkout = checkouts_collection.find_one({"payment_reference": payment_reference})
+existing_checkout = checkouts_collection.find_one({
+    "cart_id": body.cart_id,
+    "status": {"$in": ["accepted", "order_created", "cart_cleared"]}
+})
 if existing_checkout:
-    if existing_checkout["status"] in ["accepted", "order_created", "cart_cleared"]:
-        return CheckoutCreateResponse(
-            checkout_id=existing_checkout["checkout_id"],
-            status="accepted"
-        )
-    elif existing_checkout["status"] == "refunded":
-        raise HTTPException(status_code=400, detail="Checkout was refunded, cannot retry")
+    return CheckoutCreateResponse(
+        checkout_id=existing_checkout["checkout_id"],
+        status="accepted"
+    )
 
-# No existing checkout; insert new one
+# No existing checkout; create new one
+checkout_id = str(uuid.uuid4())
+payment_reference = str(uuid.uuid4())
+
+pending_checkout = {
+    "checkout_id": checkout_id,
+    "payment_reference": payment_reference,
+    "cart_id": body.cart_id,
+    "shopper_id": body.shopper_id,
+    "email": str(body.email) if body.email else None,
+    "ship_to": body.ship_to.model_dump(),
+    "lines": [{"product_id": line["product_id"], "quantity": line["quantity"], "price_snapshot_minor_units": line["price_snapshot_minor_units"]} for line in cart_lines],
+    "total_minor_units": cart_total,
+    "status": "pending",
+    "order_id": None,
+    "created_at": datetime.utcnow(),
+    "updated_at": datetime.utcnow()
+}
+checkouts_collection.insert_one(pending_checkout)
+
+try:
+    async with httpx.AsyncClient() as client:
+        payment_response = await client.post(
+            f"{PAYMENT_SERVICE_URL}/charge",
+            json={"amount_minor_units": cart_total, "payment_reference": payment_reference},
+        )
+except httpx.RequestError:
+    checkouts_collection.delete_one({"checkout_id": checkout_id})
+    raise HTTPException(status_code=500, detail="Payment service unavailable") from None
+
+if payment_response.status_code != 200:
+    checkouts_collection.delete_one({"checkout_id": checkout_id})
+    raise HTTPException(status_code=500, detail="Payment service unavailable")
+
+payment_data = payment_response.json()
+if payment_data["status"] == "refused":
+    checkouts_collection.update_one(
+        {"checkout_id": checkout_id},
+        {"$set": {"status": "refused", "updated_at": datetime.utcnow()}}
+    )
+    return CheckoutCreateResponse(checkout_id=checkout_id, status="refused", reason=payment_data["reason"])
+
+# Payment accepted; insert outbox
+outbox_row = OutboxRow(
+    event_type="OrderRequested",
+    payload={
+        "event_type": "OrderRequested",
+        "payment_reference": payment_reference,
+        "checkout_id": checkout_id,
+        "shopper_id": body.shopper_id,
+        "email": str(body.email) if body.email else None,
+        "ship_to": body.ship_to.model_dump(),
+        "lines": [{"product_id": line["product_id"], "quantity": line["quantity"], "price_minor_units": line["price_snapshot_minor_units"]} for line in cart_lines],
+        "total_minor_units": cart_total,
+        "timestamp": datetime.utcnow().isoformat()
+    },
+    payment_reference=payment_reference,
+    published=False,
+    published_at=None,
+    created_at=datetime.utcnow()
+)
+
+try:
+    outbox_collection.insert_one(outbox_row.model_dump(by_alias=True))
+except PyMongoError:
+    checkouts_collection.delete_one({"checkout_id": checkout_id})
+    raise HTTPException(status_code=500, detail="Failed to store outbox") from None
+
+checkouts_collection.update_one(
+    {"checkout_id": checkout_id},
+    {"$set": {"status": "accepted", "updated_at": datetime.utcnow()}}
+)
+
+return CheckoutCreateResponse(checkout_id=checkout_id, status="accepted")
 ```
 
-**Known Gap:** If the same cart is checked out twice with different payment references (payment generates a new reference per charge), two charges and two checkouts are created. This is logged as `[IDEMPOTENCY_DEFERRED]` and requires client-side idempotency (client generates a stable payment reference per checkout attempt).
+**Payment service change:** `POST /charge` now accepts an optional `payment_reference` field in the request. The first call with a reference creates one charge and stores that reference. A later call with the same reference returns the existing charge (status, reference, or reason) and does not create another. A missing reference is rejected with 400.
 
----
+**Known Gap:** If two clients submit the same cart simultaneously before either checkout is inserted, both will pass the idempotency check and create two checkouts. This race is logged as `[IDEMPOTENCY_DEFERRED]` and requires a unique index on `(cart_id, status)` or client-side request deduplication.
 
 ### Relay: Publish Outbox Messages
 
@@ -635,13 +712,17 @@ class _FakeAsyncClient:
     async def post(self, url, json=None):
         calls.append(("POST", url, json))
         if url.endswith("/charge"):
+            # Payment accepts if payment_reference is provided and amount < 100000
+            if "payment_reference" not in json:
+                return _FakeResponse(400, {"error": "payment_reference required"})
             amount = json["amount_minor_units"]
             if amount >= 100000:
                 return _FakeResponse(
                     200, {"status": "refused", "reason": "Amount exceeds limit"}
                 )
+            # Idempotent: return same reference
             return _FakeResponse(
-                200, {"status": "accepted", "reference": "pay_ref_1"}
+                200, {"status": "accepted", "reference": json["payment_reference"]}
             )
         return _FakeResponse(500, {})
 
@@ -662,11 +743,26 @@ def setup_function():
     def find_one_checkouts(query):
         if "checkout_id" in query:
             return checkouts_data.get(query["checkout_id"])
+        if "cart_id" in query:
+            for checkout in checkouts_data.values():
+                if checkout.get("cart_id") == query["cart_id"]:
+                    if "status" in query:
+                        if checkout.get("status") in query["status"].get("$in", []):
+                            return checkout
+                    else:
+                        return checkout
         if "payment_reference" in query:
             for checkout in checkouts_data.values():
                 if checkout.get("payment_reference") == query["payment_reference"]:
                     return checkout
         return None
+
+    def update_one_checkouts(query, update):
+        if "checkout_id" in query:
+            checkout = checkouts_data.get(query["checkout_id"])
+            if checkout:
+                checkout.update(update.get("$set", {}))
+        return MagicMock(matched_count=1)
 
     def delete_one_checkouts(query):
         if "checkout_id" in query:
@@ -691,6 +787,7 @@ def setup_function():
 
     checkouts_collection.insert_one.side_effect = insert_one_checkouts
     checkouts_collection.find_one.side_effect = find_one_checkouts
+    checkouts_collection.update_one.side_effect = update_one_checkouts
     checkouts_collection.delete_one.side_effect = delete_one_checkouts
 
     outbox_collection.insert_one.side_effect = insert_one_outbox
@@ -837,9 +934,9 @@ def test_repeated_checkout_returns_existing_checkout():
     all_outbox = [r for r in outbox_data.values() if r.get("payment_reference") == payment_reference]
     assert len(all_outbox) == 1
     
-    # Only one payment charge
+    # Payment called only once (first POST called payment; second POST returned the existing checkout without calling payment)
     payment_calls = [call for call in calls if call[1].endswith("/charge")]
-    assert len(payment_calls) == 2  # Both POSTs called payment, but second checkout was not inserted
+    assert len(payment_calls) == 1
 ```
 
 ### Test 4: `test_relay_publishes_outbox_message()`
@@ -865,7 +962,7 @@ def test_relay_publishes_outbox_message():
             "checkout_id": "chk_123",
             "email": "guest@example.com",
             "ship_to": _ship_to().model_dump(),
-            "lines": [{"product_id": "prod1", "quantity": 1, "price_snapshot_minor_units": 1000}],
+            "lines": [{"product_id": "prod1", "quantity": 1, "price_minor_units": 1000}],
             "total_minor_units": 1000,
             "timestamp": datetime.utcnow().isoformat()
         },
@@ -928,31 +1025,23 @@ def test_completion_checker_inserts_refund_request():
 
 ```python
 def test_idempotency_duplicate_payment_reference():
-    """AC4: Duplicate payment reference returns existing checkout."""
-    # Mock payment to return fixed reference
-    class _FixedRefClient(_FakeAsyncClient):
-        async def post(self, url, json=None):
-            if url.endswith("/charge"):
-                return _FakeResponse(200, {"status": "accepted", "reference": "pay_fixed"})
-            return await super().post(url, json)
+    """AC4: Duplicate cart_id returns existing checkout."""
+    cart_id = "cart-dup"
+    _seed_cart(cart_id, quantity=1, price=1000)
     
-    routes.httpx.AsyncClient = _FixedRefClient
+    body = {"cart_id": cart_id, "email": "guest@example.com", "ship_to": _ship_to().model_dump()}
     
-    cart_id_1 = "cart-dup-1"
-    _seed_cart(cart_id_1, quantity=1, price=1000)
-    response1 = client.post("/checkout", json={"cart_id": cart_id_1, "email": "guest@example.com", "ship_to": _ship_to().model_dump()})
+    response1 = client.post("/checkout", json=body)
     assert response1.status_code == 200
     checkout_id_1 = response1.json()["checkout_id"]
     
-    cart_id_2 = "cart-dup-2"
-    _seed_cart(cart_id_2, quantity=1, price=1000)
-    response2 = client.post("/checkout", json={"cart_id": cart_id_2, "email": "guest@example.com", "ship_to": _ship_to().model_dump()})
+    response2 = client.post("/checkout", json=body)
     assert response2.status_code == 200
     checkout_id_2 = response2.json()["checkout_id"]
     
-    assert checkout_id_1 == checkout_id_2  # Idempotency
+    assert checkout_id_1 == checkout_id_2  # Idempotency by cart_id
     
-    all_checkouts = [c for c in checkouts_data.values() if c.get("payment_reference") == "pay_fixed"]
+    all_checkouts = [c for c in checkouts_data.values() if c.get("cart_id") == cart_id and c.get("status") in ["accepted", "order_created", "cart_cleared"]]
     assert len(all_checkouts) == 1
 ```
 

@@ -317,7 +317,10 @@ Checkout still calls `GET /cart/{cart_id}` and `DELETE /cart/{cart_id}` (verify 
 }
 ```
 
-**Idempotency:** Payment generates a unique reference per charge (no idempotency key accepted in v1). Checkout detects duplicates by querying its own database after payment returns the reference. Mark this as `[IDEMPOTENCY_DEFERRED]`.
+
+**Idempotency:** 
+Assumption: Checkout implements idempotency by querying its own database before calling payment. Before calling `POST /charge`, checkout queries the `checkouts` collection for any checkout with the same `cart_id` and status `accepted`, `order_created`, or `cart_cleared`. If one exists, checkout returns that existing checkout to the client and does not call payment. Otherwise, checkout calls payment once, receives `payment_data["reference"]`, then inserts the checkout record and outbox row atomically, using that reference as the idempotency key. Payment generates a fresh reference on every call and does not accept or honor an idempotency key in v1. Mark this as `[IDEMPOTENCY_DEFERRED]`.
+
 
 ---
 
