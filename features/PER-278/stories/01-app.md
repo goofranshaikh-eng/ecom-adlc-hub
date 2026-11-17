@@ -76,6 +76,7 @@
 2. **`checkout/models.py`**
    - Add `CheckoutLine(BaseModel)` with `product_id: str`, `quantity: int`, `price_snapshot_minor_units: int`
    - Add `CheckoutRecord(BaseModel)` with `checkout_id: str`, `payment_reference: str`, `cart_id: str`, `shopper_id: Optional[str]`, `email: Optional[str]`, `ship_to: ShipTo`, `lines: List[CheckoutLine]`, `total_minor_units: int`, `status: Literal["pending", "accepted", "refused", "order_created", "cart_cleared", "refund_pending", "refunded"]`, `order_id: Optional[str]`, `created_at: datetime`, `updated_at: datetime`
+
    - Add `OutboxRow(BaseModel)` with `event_type: Literal["OrderRequested", "RefundRequested"]`, `payload: dict`, `payment_reference: str`, `published: bool`, `published_at: Optional[datetime]`, `created_at: datetime`
    - Add `CheckoutCreateResponse(BaseModel)` with `checkout_id: str`, `status: Literal["accepted", "refused"]`, `reason: Optional[str]`, and `@model_validator` to enforce `reason` is present when status is `"refused"`
    - Tests: all tests that call `POST /checkout` validate the response schema

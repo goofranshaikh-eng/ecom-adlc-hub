@@ -774,8 +774,7 @@ except PyMongoError:
 - `shopper_id` (string, optional): Present for signed-in checkout.
 - `email` (string, optional): Present for guest checkout.
 - `lines[].price_snapshot_minor_units` (integer, required): Mapped to `price_minor_units` in the order document on insert (see `repo-file/app/order/models.js` and `repo-file/app/order/routes.js`).
-- `total_minor_units` (integer, required): Trusted from checkout; no recalculation.
-- `timestamp` (string, ISO 8601, required): Event timestamp for observability.
+
 
 ---
 
