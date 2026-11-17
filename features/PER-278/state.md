@@ -1,20 +1,20 @@
 ---
 schema_version: 1
 key: PER-278
-status: waiting_architect_review
-current_node: architect_gate
+status: in_development
+current_node: dev
 track: quick
 involved_repos:
 - app
 depends_on: []
 owner: goos
-lease_until: '2026-11-19T10:30:01.850965+00:00'
-revision: 20
+lease_until: '2026-11-19T12:29:41.115398+00:00'
+revision: 87
 hub_sha: null
 ticket_hash: 2c9a634265fa1277
 jira_hash: 2c9a634265fa1277
-tpm_approved: false
-specs_locked: false
+tpm_approved: true
+specs_locked: true
 skills_lock:
   bmad: 1cbcfa272fe65787c06a1fa164a901f46117cca7
 stories:
@@ -24,7 +24,13 @@ stories:
 - 04-app
 - 05-app
 - 06-app
-child_ticket_keys: []
+child_ticket_keys:
+- PER-286
+- PER-287
+- PER-288
+- PER-289
+- PER-290
+- PER-291
 critic_iterations: 2
 dev_retries: 0
 pr_revision_rounds: 0
@@ -33,13 +39,13 @@ pr_ids:
   hub_plan: '2'
   hub_arch: '3'
   hub: '3'
-waiting_for: architect_review
-tokens_in: 3534866
-tokens_out: 178424
-cost_anthropic_usd: 13.280622
-cursor_tokens_in: 0
-cursor_tokens_out: 0
-cursor_cache_read_tokens: 0
+waiting_for: null
+tokens_in: 3946571
+tokens_out: 202199
+cost_anthropic_usd: 14.872362
+cursor_tokens_in: 125779
+cursor_tokens_out: 54378
+cursor_cache_read_tokens: 1969408
 cursor_cache_write_tokens: 0
 history:
 - node: intake
@@ -148,6 +154,89 @@ history:
 - node: architect_gate
   note: awaiting human hub PR approval
   at: '2026-11-17T11:17:33.688692+00:00'
+- node: architect_gate
+  note: "reviewer answered C4 \u2192 fix"
+  at: '2026-11-17T11:42:47.144873+00:00'
+- node: critic
+  note: 'for the gate, not a spec rewrite: C2, C3, C5, C6, C6, C7'
+  at: '2026-11-17T11:42:47.324512+00:00'
+- node: critic
+  note: 'decided C4: Checkout implements idempotency by querying its own database
+    before calling payment. Before calling `POST /charge`, checkout queries the `checkouts`
+    collection for any checkout with the same `cart_id` and status `accepted`, `order_created`,
+    or `cart_cleared`. If one exists, checkout returns that existing checkout to the
+    client and does not call payment. Otherwise, checkout calls payment once, receives
+    `payment_data["reference"]`, then inserts the checkout record and outbox row atomically,
+    using that reference as the idempotency key. Payment generates a fresh reference
+    on every call and does not accept or honor an idempotency key in v1.'
+  at: '2026-11-17T11:43:08.463354+00:00'
+- node: critic
+  note: 'decided C4: Idempotency is checked by `cart_id` before calling payment. If
+    a checkout with the same `cart_id` already exists in status `accepted`, `order_created`,
+    or `cart_cleared`, return it without calling payment. Otherwise, call payment
+    once and insert the checkout and outbox row using the payment response''s `reference`
+    as `payment_reference`. The "before payment call" and "after payment call" blocks
+    are removed and replaced with one rule in the "Idempotency: Duplicate Checkout
+    Submission" section.'
+  at: '2026-11-17T11:44:59.975009+00:00'
+- node: critic
+  note: 'fix refused specs/1.md: would drop sections: [atomic_write] insert checkout
+    + outbox in one write (verify mongodb transaction support), after payment accepts:'
+  at: '2026-11-17T11:44:59.976077+00:00'
+- node: architect_gate
+  note: 'critic items on the gate PR: C2'
+  at: '2026-11-17T11:46:04.915529+00:00'
+- node: architect_gate
+  note: 'critic items on the gate PR: C2'
+  at: '2026-11-17T11:47:21.194399+00:00'
+- node: architect_gate
+  note: "reviewer answered C2 \u2192 fix"
+  at: '2026-11-17T11:58:59.371136+00:00'
+- node: critic
+  note: "quote check: C2 specs/1.md \u2192 stories/01-app.md"
+  at: '2026-11-17T11:58:59.612385+00:00'
+- node: critic
+  note: 'for the gate, not a spec rewrite: C3, C4, C5, C6, C6'
+  at: '2026-11-17T11:58:59.618405+00:00'
+- node: critic
+  note: 'decided C2: The idempotency check is before calling payment, using `cart_id`
+    as the key. Checkout queries for an existing checkout with the same `cart_id`
+    and status in `["accepted", "order_created", "cart_cleared"]`. If found, it returns
+    that checkout without calling payment. Otherwise, it creates a pending checkout,
+    generates a new `payment_reference`, calls payment with that reference, and then
+    inserts the outbox and updates the checkout to accepted. Payment now accepts `payment_reference`
+    in the charge request and returns the same reference. The first call with a reference
+    creates one charge; a later call with the same reference returns that charge without
+    creating another. This change appears in checkout/routes.py (before-payment idempotency
+    check, pending checkout insert, payment call with reference), checkout/models.py
+    (pending and refused statuses), payment/models.py and payment/routes.py (payment_reference
+    field), and the tests (payment call count assertion updated to 1, payment test
+    added for duplicate reference).'
+  at: '2026-11-17T12:01:51.682326+00:00'
+- node: architect_gate
+  note: approved via hub PR (reconcile)
+  at: '2026-11-17T12:29:41.015845+00:00'
+- node: architect_gate
+  note: "forge unlocked architect_review \u2192 resume"
+  at: '2026-11-17T12:29:41.115622+00:00'
+- node: architect_gate
+  note: 'repo graph: app: Gortex skipped (Gortex not found. Install it (https://github.com/zzet/gortex/releases)
+    to ~/.adlc/bin/gortex or on PATH, or set ADLC_GORTEX_BIN)'
+  at: '2026-11-17T12:29:43.122895+00:00'
+- node: dev
+  note: 'sub-issues created from the approved breakdown: PER-286, PER-287, PER-288,
+    PER-289, PER-290, PER-291'
+  at: '2026-11-17T12:29:58.317922+00:00'
+- node: dev
+  note: starting
+  at: '2026-11-17T12:29:58.317965+00:00'
+- node: dev
+  note: 'not checked before PR, commands empty in project.yaml: repos.app.commands.test,
+    repos.app.commands.lint'
+  at: '2026-11-17T12:29:58.318914+00:00'
+- node: dev
+  note: done 01-app
+  at: '2026-11-17T12:44:16.980201+00:00'
 ---
 
 # Feature state

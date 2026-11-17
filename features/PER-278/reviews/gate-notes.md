@@ -2,14 +2,12 @@
 
 Not blocking. For whoever reviews the specs at the gate.
 
-## Notes (6)
+## Notes (4)
 
-- **C2** · `specs/2.md` › ## Schema/API Contracts: The field note for `lines[].price_snapshot_minor_units` now reads "Mapped to `price_minor_units` in the order document on insert (see HLD)." The HLD section says "see `repo-file/app/order/models.js` and … _(the critic marked it a note)_
-- **C3** · `specs/1.md` › ## File-by-File Changes › checkout/routes.py: The spec shows the new code (checkout + outbox insert with rollback) but does not show the "Before" code it replaces. _(new in a re-check, in text no fix touched)_
-- **C5** · `specs/1.md` › ## Risks › R3: Checkout and outbox insert is not atomic: The risk section describes the rollback strategy, but the code block does not implement it. _(new in a re-check, in text no fix touched)_
-- **C6** · `hld.md` › ## Open Questions: The HLD lists "What is the duration of the completion window for refunds?" as an open question, but the breakdown and story 4 state the default is 5 minutes (configurable via `COMPLETION_WINDOW_SECONDS`). _(the critic marked it a note)_
-- **C6** · `stories/02-app.md` › ## Algorithm Notes › Data Mapping: `OrderRequested` → Order Document: None. _(the critic marked it a note)_
-- **C7** · `stories/01-app.md` › ## Tests › Test 3: `test_repeated_checkout_returns_existing_checkout(): The test comment says "both POSTs called payment, but second checkout was not inserted", but the breakdown's AC4 says "no second charge is made". _(new in a re-check, in text no fix touched)_
+- **C3** · `specs/1.md` › ## Risks › R3: Checkout and outbox insert is not atomic: Fallback Strategy: 1. _(new in a re-check, in text no fix touched)_
+- **C4** · `stories/01-app.md` › ## Tests › Test 6: `test_idempotency_duplicate_payment_reference(): def test_idempotency_duplicate_payment_reference(): """AC4: Duplicate cart_id returns existing checkout.""" cart_id = "cart-dup" _seed_cart(cart_id, quantity=1, price=1000) body = {"cart_id": cart_id, "email" … _(new in a re-check, in text no fix touched)_
+- **C5** · `hld.md` › ## Open Questions: 1. _(the critic marked it a note)_
+- **C6** · `stories/02-app.md` › ## Algorithm Notes › Data Mapping: `OrderRequested` → Order Document: Field Mapping:** - `msg.payment_reference` → `orderDoc.payment_reference` - `msg.shopper_id` → `orderDoc.shopper_id` (optional; omit field if `null` or `undefined`) - `msg.email` → `orderDoc.email` (optional; omit field … _(the critic marked it a note)_
 
 ## Outdated: about text that has changed since (2)
 

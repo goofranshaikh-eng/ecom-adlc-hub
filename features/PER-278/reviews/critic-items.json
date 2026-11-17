@@ -29,36 +29,38 @@
       "pr_seen": []
     },
     {
-      "id": "C2",
+      "id": "C1",
       "file": "specs/1.md",
-      "section": "",
-      "quote": "price_snapshot_minor_units: int",
-      "match": [
-        [
-          "hld.md",
-          "## Message Schemas \u203a OrderRequested"
-        ]
-      ],
-      "problem": "The breakdown's story 2 schema lists `price_snapshot_minor_units` but does not state the field must be renamed to `price_minor_units` on insert.",
-      "change": "In story 2's schema section, add a field note below `price_snapshot_minor_units`: \"Mapped to `price_minor_units` in the order document (see `repo-file/app/order/models.js`).\"",
-      "status": "fixed",
-      "reason": "no longer raised in round 2",
-      "round": 1,
-      "decision": "",
+      "section": "### Idempotency: Duplicate Checkout Submission",
+      "quote": "2. If no existing checkout, generate `checkout_id = str(uuid.uuid4())` and `payment_reference = str(uuid.uuid4())`\n3. Insert pending checkout: `checkouts_collection.insert_one({checkout_id, payment_reference, cart_id, ..., status: \"pending\", created_at: now(), updated_at: now()})`\n4. Call `POST /charge` with `{\"amount_minor_units\": cart_total, \"payment_reference\": payment_reference}`",
+      "match": [],
+      "problem": "The spec says checkout generates payment_reference and sends it to payment as the idempotency key, but the existing payment service (repo-file/app/payment/routes.py lines 70-71) generates `reference = str(uuid.uuid4())` and does not accept a payment_reference field in ChargeRequest. The HLD decision says \"Checkout implements idempotency by querying its own database before calling payment,\" which matches the first step, but the payment call at step 4 would send a reference payment does not read.",
+      "change": "Remove step 2's `payment_reference = str(uuid.uuid4())` and step 4's `\"payment_reference\": payment_reference` from the charge request. Keep the pending checkout insert with no payment_reference yet. After payment accepts (step 5), set `payment_reference = payment_data[\"reference\"]` before inserting the outbox row. The outbox insert and checkout update both use that reference. The payment service stays unchanged (does not accept payment_reference). Add a note: \"[IDEMPOTENCY_DEFERRED] payment does not accept an idempotency key in v1; a repeated charge creates a second charge with a different reference. Checkout detects duplicate cart_id before calling payment to prevent this.\"",
+      "status": "open",
+      "reason": "",
+      "round": 5,
+      "decision": "Idempotency is checked by `cart_id` before calling payment. If a checkout with the same `cart_id` already exists in status `accepted`, `order_created`, or `cart_cleared`, return it without calling payment. Otherwise, call payment once and insert the checkout and outbox row using the payment response's `reference` as `payment_reference`. The \"before payment call\" and \"after payment call\" blocks are removed and replaced with one rule in the \"Idempotency: Duplicate Checkout Submission\" section.",
       "severity": "blocking",
-      "code_claim": false,
-      "blocks_because": "The breakdown lists `price_snapshot_minor_units: int` in the `OrderRequested` schema but does not state that the order service must map it to `price_minor_units` when inserting. Dev would see the schema, build the consumer to store the field as given, and the order document would have the wrong field name, breaking the existing `GET /orders/{order_id}` endpoint which returns `price_minor_units`.",
+      "code_claim": true,
+      "blocks_because": "The spec says checkout generates `payment_reference` before calling payment and sends it as the idempotency key, but the existing code at line 103 uses `payment_data[\"reference\"]` from the payment response as the reference, and the payment service (repo-file/app/payment/routes.py) generates its own UUID and does not accept or honor a `payment_reference` in the request. Dev would build a payment_reference field in the charge request that payment ignores, so a repeated cart_id submits twice and creates two charges with different references.",
       "trail": [
-        "round 1: raised (blocking)",
-        "round 1: moved from `breakdown.md`: the quoted text is in `specs/1.md`",
-        "round 1: fix failed: fix refused: would drop sections: [atomic_write] insert checkout + outbox in one write (verify mongodb transaction support), after payment accepts:",
-        "round 2: fixed: no longer raised in round 2"
+        "round 2: raised (blocking)",
+        "round 2: fix failed: fix refused: section `### `checkout/routes.py`` is not in the file exactly once",
+        "round 3: raised again (blocking)",
+        "round 3: open: found in the last read; no round left to fix it",
+        "round 3: open: answered at the gate: Use one rule. Before calling POST /charge, look up checkouts for this cart_id with status accepted, order_created, or cart_cleared. If one exists, return it and do not call payment. Otherwise call payment once, set payment_reference = payment_data[\"reference\"], then insert the checkout and outbox row. Remove the \"before payment call\" and \"after payment call\" blocks in specs/1.md so there is one version. Payment stays unchanged in v1.",
+        "round 3: the fixer decided: Idempotency is checked by `cart_id` before calling payment. If a checkout with the same `cart_id` already exists in status `accepted`, `order_created`, or `cart_cleared`, return it without calling payment. Otherwise, call payment once and insert the checkout and outbox row using the payment response's `reference` as `payment_reference`. The \"before payment call\" and \"after payment call\" blocks are removed and replaced with one rule in the \"Idempotency: Duplicate Checkout Submission\" section.",
+        "round 3: fix failed: fix refused: would drop sections: [atomic_write] insert checkout + outbox in one write (verify mongodb transaction support), after payment accepts:",
+        "round 4: raised again (blocking)",
+        "round 5: raised again (blocking)"
       ],
       "fix_rounds": [],
-      "pr_comment": "",
-      "pr_path": "",
-      "pr_line": 0,
-      "pr_seen": []
+      "pr_comment": "inline-4598828214",
+      "pr_path": "features/PER-278/specs/1.md",
+      "pr_line": 1,
+      "pr_seen": [
+        "inline-4599068054"
+      ]
     },
     {
       "id": "C2-2",
@@ -107,11 +109,11 @@
         ]
       ],
       "problem": "The field note for `lines[].price_snapshot_minor_units` now reads \"Mapped to `price_minor_units` in the order document on insert (see HLD).\" The HLD section says \"see `repo-file/app/order/models.js` and `repo-file/app/order/routes.js`\". The spec pointer is less specific than the HLD.",
-      "change": "Change the note to say \"Mapped to `price_minor_units` in the order document on insert (see `repo-file/app/order/models.js`).\" to match the HLD's concrete file reference.",
-      "status": "note",
-      "reason": "the critic marked it a note",
+      "change": "The reviewer at the gate decided: C2: Use one checkout flow, and make the same change in specs/1.md, stories/01-app.md, hld.md, and the payment service. Remove the \"before payment call\" and \"after payment call\" blocks, and the line-73 block in the checkout/routes.py file changes.\n\nCheckout flow for POST /checkout:\n\n1. Look for a checkout with this cart_id and status accepted, order_created, or cart_cleared. If one exists, return it with status \"accepted\" and do not call payment.\n2. Otherwise insert a checkout with status \"pending\" and a new payment_reference (a new id, stored on that checkout).\n3. Call POST /charge once, and send that payment_reference as the idempotency key.\n4. If payment refuses, set the checkout to \"refused\" and return refused.\n5. If payment accepts, insert the outbox row, then set the checkout to \"accepted\". The stored payment_reference is the one checkout sent, which payment echoes back.\n6. If the outbox insert fails, delete the pending checkout and return 500.\n\nPayment, in this ticket: POST /charge accepts payment_reference. The first call with a reference creates one charge and stores that reference. A later call with the same reference returns that same charge and does not create another. A missing reference is rejected.\n\nShow this once in checkout/routes.py, with a \"before\" block of the current payment-success code. Add \"pending\" and \"refused\" to the checkout statuses in specs/1.md and hld.md. Add the payment_reference field to the charge request in the payment spec and in hld.md under Checkout to Payment.\n\nTest 3 in stories/01-app.md: assert len(payment_calls) == 1, and set the comment to \"first POST called payment; second POST returned the existing checkout without calling payment.\" Add a payment test: two POSTs to /charge with the same payment_reference create one charge and return the same reference.",
+      "status": "fixed",
+      "reason": "confirmed in round 5",
       "round": 3,
-      "decision": "",
+      "decision": "C2: Use one checkout flow, and make the same change in specs/1.md, stories/01-app.md, hld.md, and the payment service. Remove the \"before payment call\" and \"after payment call\" blocks, and the line-73 block in the checkout/routes.py file changes.\n\nCheckout flow for POST /checkout:\n\n1. Look for a checkout with this cart_id and status accepted, order_created, or cart_cleared. If one exists, return it with status \"accepted\" and do not call payment.\n2. Otherwise insert a checkout with status \"pending\" and a new payment_reference (a new id, stored on that checkout).\n3. Call POST /charge once, and send that payment_reference as the idempotency key.\n4. If payment refuses, set the checkout to \"refused\" and return refused.\n5. If payment accepts, insert the outbox row, then set the checkout to \"accepted\". The stored payment_reference is the one checkout sent, which payment echoes back.\n6. If the outbox insert fails, delete the pending checkout and return 500.\n\nPayment, in this ticket: POST /charge accepts payment_reference. The first call with a reference creates one charge and stores that reference. A later call with the same reference returns that same charge and does not create another. A missing reference is rejected.\n\nShow this once in checkout/routes.py, with a \"before\" block of the current payment-success code. Add \"pending\" and \"refused\" to the checkout statuses in specs/1.md and hld.md. Add the payment_reference field to the charge request in the payment spec and in hld.md under Checkout to Payment.\n\nTest 3 in stories/01-app.md: assert len(payment_calls) == 1, and set the comment to \"first POST called payment; second POST returned the existing checkout without calling payment.\" Add a payment test: two POSTs to /charge with the same payment_reference create one charge and return the same reference.",
       "severity": "note",
       "code_claim": true,
       "blocks_because": "",
@@ -119,15 +121,56 @@
         "round 2: raised (blocking)",
         "round 2: unchecked: fixed in `specs/2.md`, not checked yet",
         "round 3: raised again (note)",
-        "round 3: note: the critic marked it a note"
+        "round 3: note: the critic marked it a note",
+        "round 3: open: answered at the gate: C2: Use one checkout flow, and make the same change in specs/1.md, stories/01-app.md, hld.md, and the payment service. Remove the \"before payment call\" and \"after payment call\" blocks, and the line-73 block in the checkout/routes.py file changes.\n\nCheckout flow for POST /checkout:\n\n1. Look for a checkout with this cart_id and status accepted, order_created, or cart_cleared. If one exists, return it with status \"accepted\" and do not call payment.\n2. Otherwise insert a checkout with status \"pending\" and a new payment_reference (a new id, stored on that checkout).\n3. Call POST /charge once, and send that payment_reference as the idempotency key.\n4. If payment refuses, set the checkout to \"refused\" and return refused.\n5. If payment accepts, insert the outbox row, then set the checkout to \"accepted\". The stored payment_reference is the one checkout sent, which payment echoes back.\n6. If the outbox insert fails, delete the pending checkout and return 500.\n\nPayment, in this ticket: POST /charge accepts payment_reference. The first call with a reference creates one charge and stores that reference. A later call with the same reference returns that same charge and does not create another. A missing reference is rejected.\n\nShow this once in checkout/routes.py, with a \"before\" block of the current payment-success code. Add \"pending\" and \"refused\" to the checkout statuses in specs/1.md and hld.md. Add the payment_reference field to the charge request in the payment spec and in hld.md under Checkout to Payment.\n\nTest 3 in stories/01-app.md: assert len(payment_calls) == 1, and set the comment to \"first POST called payment; second POST returned the existing checkout without calling payment.\" Add a payment test: two POSTs to /charge with the same payment_reference create one charge and return the same reference.",
+        "round 3: unchecked: fixed in `specs/2.md`, not checked yet",
+        "round 5: fixed: confirmed in round 5"
       ],
       "fix_rounds": [
-        2
+        2,
+        3
       ],
       "pr_comment": "",
       "pr_path": "",
       "pr_line": 0,
       "pr_seen": []
+    },
+    {
+      "id": "C2",
+      "file": "stories/01-app.md",
+      "section": "## Tests",
+      "quote": "# Only one checkout record\ncheckout = checkouts_collection.find_one({\"checkout_id\": checkout_id_1})\npayment_reference = checkout[\"payment_reference\"]\nall_checkouts = [c for c in checkouts_data.values() if c.get(\"payment_reference\") == payment_reference]\nassert len(all_checkouts) == 1",
+      "match": [],
+      "problem": "The test checks that all checkouts with the same payment_reference is exactly one, but it does not assert that payment was called only once. If the idempotency check failed, payment would be called twice and create two charges with different references, so the two checkouts would have different payment_references and the test would pass even though AC4 (no second charge) is broken.",
+      "change": "Before the `all_checkouts` assertion, add: `payment_calls = [call for call in calls if call[1].endswith(\"/charge\")]` and `assert len(payment_calls) == 1, \"Payment was called more than once\"`. Then keep the `all_checkouts` assertion as-is.",
+      "status": "open",
+      "reason": "",
+      "round": 5,
+      "decision": "The idempotency check is before calling payment, using `cart_id` as the key. Checkout queries for an existing checkout with the same `cart_id` and status in `[\"accepted\", \"order_created\", \"cart_cleared\"]`. If found, it returns that checkout without calling payment. Otherwise, it creates a pending checkout, generates a new `payment_reference`, calls payment with that reference, and then inserts the outbox and updates the checkout to accepted. Payment now accepts `payment_reference` in the charge request and returns the same reference. The first call with a reference creates one charge; a later call with the same reference returns that charge without creating another. This change appears in checkout/routes.py (before-payment idempotency check, pending checkout insert, payment call with reference), checkout/models.py (pending and refused statuses), payment/models.py and payment/routes.py (payment_reference field), and the tests (payment call count assertion updated to 1, payment test added for duplicate reference).",
+      "severity": "blocking",
+      "code_claim": false,
+      "blocks_because": "The test asserts one checkout exists for the payment_reference, but if two POSTs to /checkout with the same cart_id both succeed (second returns the first's checkout_id), they would have the same payment_reference only if the second POST did not call payment. The first POST calls payment and gets a reference; the second POST returns the existing checkout without calling payment, so there is no second reference. Dev would read the test, see it assumes the second POST shares the reference of the first, and build code that calls payment twice but stores the same reference, which is wrong.",
+      "trail": [
+        "round 1: raised (blocking)",
+        "round 1: moved from `breakdown.md`: the quoted text is in `specs/1.md`",
+        "round 1: fix failed: fix refused: would drop sections: [atomic_write] insert checkout + outbox in one write (verify mongodb transaction support), after payment accepts:",
+        "round 2: fixed: no longer raised in round 2",
+        "round 4: raised again (blocking)",
+        "round 4: open: answered at the gate: C2: Use one checkout flow, and make the same change in specs/1.md, stories/01-app.md, hld.md, and the payment service. Remove the \"before payment call\" and \"after payment call\" blocks, and the line-73 block in the checkout/routes.py file changes.\n\nCheckout flow for POST /checkout:\n\n1. Look for a checkout with this cart_id and status accepted, order_created, or cart_cleared. If one exists, return it with status \"accepted\" and do not call payment.\n2. Otherwise insert a checkout with status \"pending\" and a new payment_reference (a new id, stored on that checkout).\n3. Call POST /charge once, and send that payment_reference as the idempotency key.\n4. If payment refuses, set the checkout to \"refused\" and return refused.\n5. If payment accepts, insert the outbox row, then set the checkout to \"accepted\". The stored payment_reference is the one checkout sent, which payment echoes back.\n6. If the outbox insert fails, delete the pending checkout and return 500.\n\nPayment, in this ticket: POST /charge accepts payment_reference. The first call with a reference creates one charge and stores that reference. A later call with the same reference returns that same charge and does not create another. A missing reference is rejected.\n\nShow this once in checkout/routes.py, with a \"before\" block of the current payment-success code. Add \"pending\" and \"refused\" to the checkout statuses in specs/1.md and hld.md. Add the payment_reference field to the charge request in the payment spec and in hld.md under Checkout to Payment.\n\nTest 3 in stories/01-app.md: assert len(payment_calls) == 1, and set the comment to \"first POST called payment; second POST returned the existing checkout without calling payment.\" Add a payment test: two POSTs to /charge with the same payment_reference create one charge and return the same reference.",
+        "round 4: moved from `specs/1.md`: the quoted text is in `stories/01-app.md`",
+        "round 4: the fixer decided: The idempotency check is before calling payment, using `cart_id` as the key. Checkout queries for an existing checkout with the same `cart_id` and status in `[\"accepted\", \"order_created\", \"cart_cleared\"]`. If found, it returns that checkout without calling payment. Otherwise, it creates a pending checkout, generates a new `payment_reference`, calls payment with that reference, and then inserts the outbox and updates the checkout to accepted. Payment now accepts `payment_reference` in the charge request and returns the same reference. The first call with a reference creates one charge; a later call with the same reference returns that charge without creating another. This change appears in checkout/routes.py (before-payment idempotency check, pending checkout insert, payment call with reference), checkout/models.py (pending and refused statuses), payment/models.py and payment/routes.py (payment_reference field), and the tests (payment call count assertion updated to 1, payment test added for duplicate reference).",
+        "round 4: unchecked: fixed in `stories/01-app.md`, not checked yet",
+        "round 5: raised again (blocking)"
+      ],
+      "fix_rounds": [
+        4
+      ],
+      "pr_comment": "inline-4599107379",
+      "pr_path": "features/PER-278/specs/1.md",
+      "pr_line": 1,
+      "pr_seen": [
+        "inline-4599233647"
+      ]
     },
     {
       "id": "C3",
@@ -157,26 +200,26 @@
     {
       "id": "C3",
       "file": "specs/1.md",
-      "section": "## File-by-File Changes \u203a checkout/routes.py",
-      "quote": "Insert both to MongoDB atomically (checkout first, then outbox; rollback checkout on outbox failure)",
-      "match": [
-        [
-          "hld.md",
-          "## Algorithm Notes \u203a Atomic Insert: Checkout + Outbox"
-        ]
-      ],
-      "problem": "The spec shows the new code (checkout + outbox insert with rollback) but does not show the \"Before\" code it replaces.",
-      "change": "In the \"checkout/routes.py\" section, add a \"Before (payment success block):\" code block showing the existing order creation and cart deletion (lines 90\u2013115 from `repo-file/app/checkout/routes.py`). Then show the \"After:\" code block with the checkout + outbox insert.",
+      "section": "## Risks \u203a R3: Checkout and outbox insert is not atomic",
+      "quote": "Fallback Strategy:\n1. Insert checkout record first: `checkouts_collection.insert_one(checkout_record.model_dump(by_alias=True))`\n2. Insert outbox row second: `outbox_collection.insert_one(outbox_row.model_dump(by_alias=True))`\n3. On outbox insert failure:\n- Log the error\n- Delete the checkout record: `checkouts_collection.delete_one({\"checkout_id\": checkout_id})`\n- Raise `HTTPException(status_code=500, detail=\"Failed to store checkout\")`",
+      "match": [],
+      "problem": "",
+      "change": "",
       "status": "note",
       "reason": "new in a re-check, in text no fix touched",
-      "round": 2,
+      "round": 5,
       "decision": "",
       "severity": "blocking",
-      "code_claim": false,
-      "blocks_because": "The spec says \"insert both atomically\" and shows a try-except block with rollback, but the \"Before\" code block is missing. Dev would not know what code to replace. The spec must show the existing code that creates the order and deletes the cart (lines 90\u2013115 in `repo-file/app/checkout/routes.py`) so Dev knows where to insert the new logic.",
+      "code_claim": true,
+      "blocks_because": "",
       "trail": [
         "round 2: raised (blocking)",
-        "round 2: note: new in a re-check, in text no fix touched"
+        "round 2: note: new in a re-check, in text no fix touched",
+        "round 4: raised again (blocking)",
+        "round 4: note: new in a re-check, in text no fix touched",
+        "round 5: raised again (blocking)",
+        "round 5: note: new in a re-check, in text no fix touched",
+        "round 5: note: new in a re-check, in text no fix touched"
       ],
       "fix_rounds": [],
       "pr_comment": "",
@@ -191,11 +234,11 @@
       "quote": "POST http://localhost:8005/charge",
       "match": [],
       "problem": "The HLD states \"Payment generates a unique reference per charge. Checkout does not retry the charge; a repeated checkout submission reuses the same payment reference if the checkout already exists.\" This implies checkout sends a stable `payment_reference` to payment, but the existing `POST /charge` endpoint does not accept or use an idempotency key. Payment generates a fresh reference on every call.",
-      "change": "In the HLD's Service Interaction Contracts section, state: \"Payment generates a unique reference per charge (no idempotency key accepted in v1). Checkout detects duplicates by querying its own database after payment returns the reference. Mark this as `[IDEMPOTENCY_DEFERRED]`.\" Update the idempotency algorithm in story 1's LLD to query the checkout database after payment accepts, not before.",
+      "change": "The reviewer at the gate decided: Use one rule. Before calling POST /charge, look up checkouts for this cart_id with status accepted, order_created, or cart_cleared. If one exists, return it and do not call payment. Otherwise call payment once, set payment_reference = payment_data[\"reference\"], then insert the checkout and outbox row. Remove the \"before payment call\" and \"after payment call\" blocks in specs/1.md so there is one version. Payment stays unchanged in v1.",
       "status": "fixed",
-      "reason": "confirmed in round 2",
+      "reason": "confirmed in round 4",
       "round": 1,
-      "decision": "Payment service does not accept an idempotency key in v1. Checkout will query its own database by payment_reference after payment accepts to detect duplicate submissions, rather than sending a stable key to payment.",
+      "decision": "Checkout implements idempotency by querying its own database before calling payment. Before calling `POST /charge`, checkout queries the `checkouts` collection for any checkout with the same `cart_id` and status `accepted`, `order_created`, or `cart_cleared`. If one exists, checkout returns that existing checkout to the client and does not call payment. Otherwise, checkout calls payment once, receives `payment_data[\"reference\"]`, then inserts the checkout record and outbox row atomically, using that reference as the idempotency key. Payment generates a fresh reference on every call and does not accept or honor an idempotency key in v1.",
       "severity": "blocking",
       "code_claim": true,
       "blocks_because": "The HLD says the payment endpoint accepts an idempotency key (`payment_reference`) but the existing payment service does not. Dev would build the checkout to send a `payment_reference` field in the charge request, but the payment service would ignore it, and duplicate checkout submissions would charge twice. The HLD's idempotency design depends on the payment service accepting and honoring this key, which it does not in v1.",
@@ -203,9 +246,14 @@
         "round 1: raised (blocking)",
         "round 1: the fixer decided: Payment service does not accept an idempotency key in v1. Checkout will query its own database by payment_reference after payment accepts to detect duplicate submissions, rather than sending a stable key to payment.",
         "round 1: unchecked: fixed in `hld.md`, not checked yet",
-        "round 2: fixed: confirmed in round 2"
+        "round 2: fixed: confirmed in round 2",
+        "round 1: open: answered at the gate: Use one rule. Before calling POST /charge, look up checkouts for this cart_id with status accepted, order_created, or cart_cleared. If one exists, return it and do not call payment. Otherwise call payment once, set payment_reference = payment_data[\"reference\"], then insert the checkout and outbox row. Remove the \"before payment call\" and \"after payment call\" blocks in specs/1.md so there is one version. Payment stays unchanged in v1.",
+        "round 1: the fixer decided: Checkout implements idempotency by querying its own database before calling payment. Before calling `POST /charge`, checkout queries the `checkouts` collection for any checkout with the same `cart_id` and status `accepted`, `order_created`, or `cart_cleared`. If one exists, checkout returns that existing checkout to the client and does not call payment. Otherwise, checkout calls payment once, receives `payment_data[\"reference\"]`, then inserts the checkout record and outbox row atomically, using that reference as the idempotency key. Payment generates a fresh reference on every call and does not accept or honor an idempotency key in v1.",
+        "round 1: unchecked: fixed in `hld.md`, not checked yet",
+        "round 4: fixed: confirmed in round 4"
       ],
       "fix_rounds": [
+        1,
         1
       ],
       "pr_comment": "",
@@ -215,29 +263,26 @@
     },
     {
       "id": "C4",
-      "file": "specs/1.md",
-      "section": "### Idempotency: Duplicate Checkout Submission",
-      "quote": "Revised Idempotency Check (after payment call):**\n```python\n# After payment accepts:\npayment_reference = payment_data[\"reference\"]\n\nexisting_checkout = checkouts_collection.find_one({\"payment_reference\": payment_reference})\nif existing_checkout:\n    if existing_checkout[\"status\"] in [\"accepted\", \"order_created\", \"cart_cleared\"]:\n        return CheckoutCreateResponse(\n            checkout_id=existing_checkout[\"checkout_id\"],\n            status=\"accepted\"\n        )\n    elif existing_checkout[\"status\"] == \"refunded\":\n        raise HTTPException(status_code=400, detail=\"Checkout was refunded, cannot retry\")\n```",
-      "match": [
-        [
-          "hld.md",
-          "## Data Flow: Accepted Checkout \u2192 Order Created \u2192 Cart Cleared"
-        ]
-      ],
-      "problem": "The \"Revised Idempotency Check\" algorithm says the query runs after payment accepts, but the \"checkout/routes.py\" file changes section says the check is added at line 73 (which is after payment accepts) but the code shown queries the database and then returns early **before** the insert. The insert happens later at line 90. The spec does not say whether the check is before or after the insert, so Dev cannot tell if the insert runs first (and then the check is redundant) or the check runs first (and prevents the insert).",
-      "change": "In the \"checkout/routes.py\" section, clarify that the idempotency check runs **before** the insert. Add a note: \"Query `checkouts_collection` by `payment_reference` before inserting. If a checkout exists for this payment reference, return the existing checkout and do not insert again.\"",
-      "status": "open",
-      "reason": "found in the last read; no round left to fix it",
-      "round": 3,
+      "file": "stories/01-app.md",
+      "section": "## Tests \u203a Test 6: `test_idempotency_duplicate_payment_reference()",
+      "quote": "def test_idempotency_duplicate_payment_reference():\n\"\"\"AC4: Duplicate cart_id returns existing checkout.\"\"\"\ncart_id = \"cart-dup\"\n_seed_cart(cart_id, quantity=1, price=1000)\nbody = {\"cart_id\": cart_id, \"email\": \"guest@example.com\", \"ship_to\": _ship_to().model_dump()}\nresponse1 = client.post(\"/checkout\", json=body)\nassert response1.status_code == 200\ncheckout_id_1 = response1.json()[\"checkout_id\"]\nresponse2 = client.post(\"/checkout\", json=body)\nassert response2.status_code == 200\ncheckout_id_2 = response2.json()[\"checkout_id\"]\nassert checkout_id_1 == checkout_id_2  # Idempotency by cart_id\nall_checkouts = [c for c in checkouts_data.values() if c.get(\"cart_id\") == cart_id and c.get(\"status\") in [\"accepted\", \"order_created\", \"cart_cleared\"]]\nassert len(all_checkouts) == 1",
+      "match": [],
+      "problem": "",
+      "change": "",
+      "status": "note",
+      "reason": "new in a re-check, in text no fix touched",
+      "round": 5,
       "decision": "",
       "severity": "blocking",
-      "code_claim": true,
-      "blocks_because": "The code block says the check happens after payment accepts, but the modified `checkout/routes.py` section at line 52 says \"Add idempotency check after payment accepts (line 73):\" and then shows the check placed **before** the checkout and outbox insert. Dev would read the idempotency algorithm and see it queries after getting `payment_reference`, but then read the file changes and place the check before the insert. The two sections disagree on when the query runs relative to the insert.",
+      "code_claim": false,
+      "blocks_because": "",
       "trail": [
-        "round 2: raised (blocking)",
-        "round 2: fix failed: fix refused: section `### `checkout/routes.py`` is not in the file exactly once",
-        "round 3: raised again (blocking)",
-        "round 3: open: found in the last read; no round left to fix it"
+        "round 3: raised (blocking)",
+        "round 3: note: new in a re-check, in text no fix touched",
+        "round 4: raised again (blocking)",
+        "round 4: note: new in a re-check, in text no fix touched",
+        "round 5: raised again (blocking)",
+        "round 5: note: new in a re-check, in text no fix touched"
       ],
       "fix_rounds": [],
       "pr_comment": "inline-4598828214",
@@ -277,57 +322,24 @@
     },
     {
       "id": "C5",
-      "file": "specs/1.md",
-      "section": "## Risks \u203a R3: Checkout and outbox insert is not atomic",
-      "quote": "Insert checkout first, then outbox; on outbox failure, delete the checkout record (rollback).",
-      "match": [
-        [
-          "stories/01-app.md",
-          "## Algorithm Notes \u203a Atomic Insert: Checkout + Outbox"
-        ]
-      ],
-      "problem": "The risk section describes the rollback strategy, but the code block does not implement it.",
-      "change": "In the \"checkout/routes.py\" section's \"After:\" code block, wrap the outbox insert in a second try-except. On `PyMongoError`, delete the checkout record (`checkouts_collection.delete_one({\"checkout_id\": checkout_id})`) before raising the 500 error.",
+      "file": "hld.md",
+      "section": "## Open Questions",
+      "quote": "1. **Completion window duration:** Default is 5 minutes. Is this acceptable, or should it be configurable per checkout?\n2. **RefundCompleted event:** Should payment service publish `RefundCompleted`, or should the completion window checker poll payment status to update checkout to `refunded`?\n3. **Relay deployment:** How is the relay process deployed (systemd, Docker, Kubernetes)? How many instances?\n4. **Completion window checker deployment:** Cron job, systemd timer, or background worker?\n5. **RabbitMQ connection pooling:** Should the relay and consumers use connection pooling, or one connection per instance?\n6. **Dead Letter Queue handling:** How are DLQ messages processed (manual review, automated retry, alert)?\n7. **Cart delete retry limit:** Current limit is 3 retries over 1 minute. Should this be configurable, or should retries be infinite?",
+      "match": [],
+      "problem": "",
+      "change": "",
       "status": "note",
-      "reason": "new in a re-check, in text no fix touched",
-      "round": 2,
+      "reason": "the critic marked it a note",
+      "round": 5,
       "decision": "",
       "severity": "blocking",
       "code_claim": false,
-      "blocks_because": "The spec says \"insert checkout first, then outbox; on outbox failure, delete the checkout record\" and marks it `[ATOMIC_WRITE_DEFERRED]`, but the \"After\" code block in the \"checkout/routes.py\" section does not show the rollback delete. Dev would insert the checkout, fail on the outbox, and leave the checkout record in the database with no outbox row. The charge is accepted but no order will ever be created.",
-      "trail": [
-        "round 2: raised (blocking)",
-        "round 2: note: new in a re-check, in text no fix touched"
-      ],
-      "fix_rounds": [],
-      "pr_comment": "",
-      "pr_path": "",
-      "pr_line": 0,
-      "pr_seen": []
-    },
-    {
-      "id": "C6",
-      "file": "hld.md",
-      "section": "## Open Questions",
-      "quote": "What is the duration of the completion window for refunds?",
-      "match": [
-        [
-          "breakdown.md",
-          "## Story 4"
-        ]
-      ],
-      "problem": "The HLD lists \"What is the duration of the completion window for refunds?\" as an open question, but the breakdown and story 4 state the default is 5 minutes (configurable via `COMPLETION_WINDOW_SECONDS`).",
-      "change": "(none; this is a note for the gate)",
-      "status": "note",
-      "reason": "the critic marked it a note",
-      "round": 1,
-      "decision": "",
-      "severity": "note",
-      "code_claim": false,
-      "blocks_because": "(not blocking)",
+      "blocks_because": "",
       "trail": [
         "round 1: raised (note)",
-        "round 1: note: the critic marked it a note"
+        "round 1: note: the critic marked it a note",
+        "round 5: raised again (blocking)",
+        "round 5: note: the critic marked it a note"
       ],
       "fix_rounds": [],
       "pr_comment": "",
@@ -339,25 +351,27 @@
       "id": "C6",
       "file": "stories/02-app.md",
       "section": "## Algorithm Notes \u203a Data Mapping: `OrderRequested` \u2192 Order Document",
-      "quote": "line.price_snapshot_minor_units \u2192 orderLine.price_minor_units (rename field)",
+      "quote": "Field Mapping:**\n- `msg.payment_reference` \u2192 `orderDoc.payment_reference`\n- `msg.shopper_id` \u2192 `orderDoc.shopper_id` (optional; omit field if `null` or `undefined`)\n- `msg.email` \u2192 `orderDoc.email` (optional; omit field if `null` or `undefined`)\n- `msg.ship_to` \u2192 `orderDoc.ship_to` (object, required)\n- `msg.lines[]` \u2192 `orderDoc.lines[]`:\n- `line.product_id` \u2192 `orderLine.product_id`\n- `line.quantity` \u2192 `orderLine.quantity`\n- `line.price_snapshot_minor_units` \u2192 `orderLine.price_minor_units` (rename field)\n- `msg.total_minor_units` \u2192 `orderDoc.total_minor_units`\n- `new Date()` \u2192 `orderDoc.created_at`",
       "match": [
         [
           "hld.md",
-          "## Message Schemas \u203a OrderRequested"
+          "## Message Schemas \u203a OrderRequested\n- note: The message schema uses `price_snapshot_minor_units`, but the order document schema (repo-file/app/order/models.js) uses `price_minor_units`. The story correctly maps the field name on insert. This is not a gap; it is a deliberate rename. The person at the gate should verify that the name change is intentional and documented, or flag it as a data model inconsistency. The HLD's field note at the OrderRequested schema says \"Mapped to `price_minor_units` in the order document on insert,\" so the documents agree."
         ]
       ],
-      "problem": "None. The LLD correctly states the field is renamed. This item is a note to verify the mapping is implemented.",
-      "change": "(none)",
+      "problem": "",
+      "change": "",
       "status": "note",
       "reason": "the critic marked it a note",
-      "round": 2,
+      "round": 5,
       "decision": "",
-      "severity": "note",
-      "code_claim": false,
-      "blocks_because": "(not blocking; this is correct and already stated in the LLD)",
+      "severity": "blocking",
+      "code_claim": true,
+      "blocks_because": "",
       "trail": [
         "round 2: raised (note)",
-        "round 2: note: the critic marked it a note"
+        "round 2: note: the critic marked it a note",
+        "round 5: raised again (blocking)",
+        "round 5: note: the critic marked it a note"
       ],
       "fix_rounds": [],
       "pr_comment": "",
@@ -390,36 +404,6 @@
         "round 1: moved from `breakdown.md`: the quoted text is in `specs/1.md`",
         "round 1: fix failed: fix refused: would drop sections: [atomic_write] insert checkout + outbox in one write (verify mongodb transaction support), after payment accepts:",
         "round 2: fixed: no longer raised in round 2"
-      ],
-      "fix_rounds": [],
-      "pr_comment": "",
-      "pr_path": "",
-      "pr_line": 0,
-      "pr_seen": []
-    },
-    {
-      "id": "C7",
-      "file": "stories/01-app.md",
-      "section": "## Tests \u203a Test 3: `test_repeated_checkout_returns_existing_checkout()",
-      "quote": "# Only one payment charge\npayment_calls = [call for call in calls if call[1].endswith(\"/charge\")]\nassert len(payment_calls) == 2  # Both POSTs called payment, but second checkout was not inserted",
-      "match": [
-        [
-          "breakdown.md",
-          "## Story 1 \u203a ### Test 3"
-        ]
-      ],
-      "problem": "The test comment says \"both POSTs called payment, but second checkout was not inserted\", but the breakdown's AC4 says \"no second charge is made\". The test asserts two payment calls, so two charges are made (payment returns a reference for each call). The idempotency check prevents the second **insert**, not the second **charge**. The test would pass but AC4 would fail.",
-      "change": "Add a note in the test: \"[KNOWN_GAP] The second POST calls payment again and creates a second charge. The idempotency check prevents the second insert, but the charge is not prevented. This violates AC4 (no second charge). Mark this as `[IDEMPOTENCY_DEFERRED]` and add a TODO to fix payment idempotency in a future ticket.\"",
-      "status": "note",
-      "reason": "new in a re-check, in text no fix touched",
-      "round": 3,
-      "decision": "",
-      "severity": "blocking",
-      "code_claim": false,
-      "blocks_because": "The test asserts `len(payment_calls) == 2` but the idempotency check (from C4) runs after payment accepts, so both POSTs call payment and get the same reference. The second POST then queries the database, finds the existing checkout, and returns it without inserting again. The assertion comment says \"both POSTs called payment, but second checkout was not inserted\", which is correct behavior. However, the test comment implies the second POST should **not** call payment, but the code shown calls payment both times. Dev would write the test with `assert len(payment_calls) == 2` and pass it, but the breakdown says the idempotency prevents a second **charge**, not a second payment call. The test and the breakdown disagree.",
-      "trail": [
-        "round 3: raised (blocking)",
-        "round 3: note: new in a re-check, in text no fix touched"
       ],
       "fix_rounds": [],
       "pr_comment": "",

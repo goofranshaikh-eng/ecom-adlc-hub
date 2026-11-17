@@ -1,0 +1,23 @@
+I'll implement the PER-278 story from the story file and code context, starting by reading those so the changes stay inside the requested scope.
+The story is a checkout outbox and RabbitMQ publish. I'll read the current checkout code and tests so the changes match the existing service.
+The checkout flow still creates the order in the request. I'll add the outbox, relay, and completion checker, and return the accepted checkout before an order exists.
+Checkout and outbox were the same mock, so lookups missed the stored checkout. I'll give each collection its own mock and rerun the tests.
+Accepted checkout now returns a checkout id before any order exists. The checkout and an unpublished `OrderRequested` outbox row are stored in `checkout_db`, and a later submit of the same cart returns that checkout without charging again.
+
+`checkout/relay.py` publishes unpublished outbox rows to the `ecom.events` exchange and marks them published after RabbitMQ acks. `checkout/completion_checker.py` writes a `RefundRequested` outbox row and sets the checkout to `refund_pending` once an accepted checkout is past the completion window.
+
+Checkout tests: 23 passed. Cart, catalog, identity, and payment tests also passed.
+
+Files changed:
+- `checkout/db.py`
+- `checkout/models.py`
+- `checkout/routes.py`
+- `checkout/main.py`
+- `checkout/requirements.txt`
+- `checkout/outbox.py`
+- `checkout/relay.py`
+- `checkout/completion_checker.py`
+- `checkout/rabbitmq_config.py`
+- `checkout/tests/conftest.py`
+- `checkout/tests/test_checkout.py`The earlier search for pytest finished. I'll check what it found and whether anything still needs doing.
+The environment search finished. Pytest is available on the system, and the checkout work was already verified in a temporary environment: 23 checkout tests passed, along with the cart, catalog, identity, and payment suites.
