@@ -1,0 +1,15 @@
+I'll start by reading the story and the repo's code context so the change stays limited to what PER-278 story 06-app asks for.
+The story is an integration-test suite plus a requirements change. I'll check the checkout service and existing tests so the new file matches how the app actually behaves.
+The integration suite belongs in `checkout/tests/test_distributed_checkout.py`. I'll keep the consumer unit tests that already live there, then add the story's tests and the `pytest-asyncio` dependency.
+Mongo already has catalog and payment data, so I’ll add the suite and run the unit tests. The new integration tests clear those databases, and the services they need are not running.
+Story 06-app is in place: the distributed checkout integration suite covers AC1–AC8, and the checkout unit tests still pass.
+
+**Files changed**
+- `checkout/tests/test_distributed_checkout.py` now holds the eight integration tests (payment refused, accepted checkout before an order exists, order recovery, repeated checkout, cart delete retry, refund when no order appears, checkout status, and database isolation).
+- `checkout/requirements.txt` now lists `pytest` and `pytest-asyncio` alongside the existing checkout dependencies.
+- `checkout/tests/test_order_created_consumer.py` keeps the OrderCreated consumer tests that previously lived in the distributed-checkout file.
+- `checkout/tests/conftest.py` still mocks `checkout/db.py` for the unit tests, then releases the `MongoClient` patch so the integration tests can use a real client.
+
+**Tests**
+- 40 checkout unit tests passed (`test_checkout.py` and `test_order_created_consumer.py`).
+- The 8 new tests collect cleanly. They were not executed: each one deletes every document in `checkout_db`, `order_db`, `payment_db`, `cart_db`, `identity_db`, and `catalog_db`, and this MongoDB already has catalog products, charges, and an order. Cart, payment, order, checkout, and RabbitMQ are not running. Without `COMPLETION_WINDOW_SECONDS` and `CART_DELETE_RETRY_DELAYS`, setup skips the suite, and the recovery, cart-retry, and refund tests wait on `input()`.
