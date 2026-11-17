@@ -9,7 +9,7 @@ involved_repos:
 depends_on: []
 owner: goos
 lease_until: '2026-11-19T12:29:41.115398+00:00'
-revision: 87
+revision: 88
 hub_sha: null
 ticket_hash: 2c9a634265fa1277
 jira_hash: 2c9a634265fa1277
@@ -43,9 +43,9 @@ waiting_for: null
 tokens_in: 3946571
 tokens_out: 202199
 cost_anthropic_usd: 14.872362
-cursor_tokens_in: 125779
-cursor_tokens_out: 54378
-cursor_cache_read_tokens: 1969408
+cursor_tokens_in: 357333
+cursor_tokens_out: 101188
+cursor_cache_read_tokens: 3018240
 cursor_cache_write_tokens: 0
 history:
 - node: intake
@@ -237,6 +237,9 @@ history:
 - node: dev
   note: done 01-app
   at: '2026-11-17T12:44:16.980201+00:00'
+- node: dev
+  note: done 02-app
+  at: '2026-11-17T12:54:51.954705+00:00'
 ---
 
 # Feature state

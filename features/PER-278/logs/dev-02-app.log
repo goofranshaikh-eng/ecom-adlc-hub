@@ -1,0 +1,25 @@
+I'll implement story 02-app from the PER-278 feature. First I'm reading the story, the code context, and the local skill notes so the change stays inside what that story asks for.
+The story is the order service consuming `OrderRequested` and publishing `OrderCreated`. I'll look at the existing order service so the new consumer matches its patterns.
+The order service already stores `payment_reference` on HTTP creates. I'll add the RabbitMQ consumer, the unique index, and tests for one order per payment reference.
+The order tests passed. I'll separate publish failures from database errors so a broker outage is not logged as a MongoDB failure, then re-run the tests.
+The order service now creates one order per `OrderRequested` message and publishes `OrderCreated` after that insert.
+
+A repeated message with the same `payment_reference` does not insert a second order. The handler looks up the existing order, and a MongoDB duplicate-key error (`11000`) from the unique index is treated the same way. `OrderCreated` is published with that order id, and the original message is acknowledged. Invalid messages are rejected without requeue. A database or publish failure is requeued so the broker can deliver the message again.
+
+`order/models.js` already required `payment_reference`, so that file was left as it is.
+
+**Files changed**
+
+- `order/consumer.js` — consumes `order.requested`, maps the message onto an order, and publishes `order.created`
+- `order/rabbitmq.js` — connection, durable topic exchange, queues, and publisher confirms
+- `order/db.js` — unique index on `orders.payment_reference`
+- `order/index.js` — starts the consumer after MongoDB connects and closes RabbitMQ on `SIGTERM` and `SIGINT`
+- `order/package.json` and `order/package-lock.json` — `amqplib` `^0.10.3` (lock resolves `0.10.9`)
+- `order/routes.js` — comment updated so a repeated `POST` is not described as creating a second order
+- `order/tests/consumer.test.js` — unit coverage for create, duplicate delivery, duplicate key, publish, and database isolation
+
+**Tests**
+
+`node --test --test-concurrency=1 tests/consumer.test.js` — 13 passed.
+
+The Python suite did not collect: the available interpreters have no `pymongo`. That failure is independent of this change. These tests do not start MongoDB or RabbitMQ, and there is no UI flow to exercise in a browser.

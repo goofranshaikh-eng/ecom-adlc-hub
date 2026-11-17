@@ -1,0 +1,1 @@
+{"story": "02-app", "repo": "app", "attempt": 1, "ok": true, "at": "2026-11-17T12:54:51+00:00", "checks": [{"name": "lint", "cmd": "", "exit": null, "summary": "no command set"}, {"name": "test", "cmd": "", "exit": null, "summary": "no command set"}]}
