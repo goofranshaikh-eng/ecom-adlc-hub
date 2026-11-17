@@ -24,10 +24,10 @@ Checkout becomes async and resilient through an outbox, RabbitMQ, and event-driv
    - focus: Map each AC to test cases; include timeout scenarios for the completion window and duplicate message delivery.
 6. [x] **merge_pack (pack)** _(auto)_ — Loop feature_with_architecture: Deterministic merged_plan.md from ordered specs and story summaries.
 7. [x] **critic (consistency_check)** — Requirements, HLD, breakdown, stories, and tests must all agree on the message schemas, idempotency keys, and service boundaries.
-8. [ ] **architect_gate (review)** _(auto)_ — Human approval of specs and this plan before Dev.
-9. [ ] **dev** _(auto)_ — Loop delivery.
-10. [ ] **pre_pr_qa** _(auto)_ — Loop delivery.
-11. [ ] **open_pr** _(auto)_ — Loop delivery.
+8. [x] **architect_gate (review)** _(auto)_ — Human approval of specs and this plan before Dev.
+9. [x] **dev** _(auto)_ — Loop delivery.
+10. [x] **pre_pr_qa** _(auto)_ — Loop delivery.
+11. [x] **open_pr** _(auto)_ — Loop delivery.
 12. [ ] **pr_review** _(auto)_ — Loop delivery.
 13. [ ] **merge** _(auto)_ — Loop delivery.
 

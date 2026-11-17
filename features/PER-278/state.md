@@ -1,15 +1,15 @@
 ---
 schema_version: 1
 key: PER-278
-status: in_development
-current_node: dev
+status: pr_reviewed
+current_node: pr_review
 track: quick
 involved_repos:
 - app
 depends_on: []
 owner: goos
 lease_until: '2026-11-19T12:29:41.115398+00:00'
-revision: 92
+revision: 96
 hub_sha: null
 ticket_hash: 2c9a634265fa1277
 jira_hash: 2c9a634265fa1277
@@ -39,10 +39,11 @@ pr_ids:
   hub_plan: '2'
   hub_arch: '3'
   hub: '3'
-waiting_for: null
-tokens_in: 3946571
-tokens_out: 202199
-cost_anthropic_usd: 14.872362
+  app: '2'
+waiting_for: feature_pr_human
+tokens_in: 3993670
+tokens_out: 202206
+cost_anthropic_usd: 15.013764
 cursor_tokens_in: 1017693
 cursor_tokens_out: 201912
 cursor_cache_read_tokens: 7196288
@@ -252,6 +253,27 @@ history:
 - node: dev
   note: done 06-app
   at: '2026-11-17T13:20:57.574033+00:00'
+- node: pre_pr_qa
+  note: report written
+  at: '2026-11-17T13:21:00.758699+00:00'
+- node: open_pr
+  note: push app ok
+  at: '2026-11-17T13:21:07.234968+00:00'
+- node: open_pr
+  note: PRs opened app:2
+  at: '2026-11-17T13:21:07.235010+00:00'
+- node: pr_review
+  note: 'cross-repo check app: no contract used by other repos is touched'
+  at: '2026-11-17T13:21:10.682706+00:00'
+- node: pr_review
+  note: diff loaded app chars=147985
+  at: '2026-11-17T13:21:12.575330+00:00'
+- node: reviewer
+  note: budget exceeded usd=15.013764 cap=15.0
+  at: '2026-11-17T13:21:15.707378+00:00'
+- node: pr_review
+  note: awaiting feature_pr_human
+  at: '2026-11-17T13:21:18.216991+00:00'
 ---
 
 # Feature state

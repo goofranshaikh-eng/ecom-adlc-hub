@@ -25,3 +25,4 @@ JSON:{"key": "tracker:blocks:PER-278:PER-289:PER-291", "intent": "add_blocker", 
 JSON:{"key": "tracker:blocks:PER-278:PER-290:PER-291", "intent": "add_blocker", "result": "PER-290 blocks PER-291", "at": "2026-11-17T12:29:57.784014+00:00"}
 JSON:{"key": "tracker:summary:PER-278", "intent": "add_comment", "result": "sub-issue summary", "at": "2026-11-17T12:29:58.316903+00:00"}
 JSON:{"key": "tracker:published:PER-278", "intent": "publish_subissues", "result": ["PER-286", "PER-287", "PER-288", "PER-289", "PER-290", "PER-291"], "at": "2026-11-17T12:29:58.317795+00:00"}
+JSON:{"key": "codehost:open-pr:PER-278:app", "intent": "open_pr", "result": "2", "at": "2026-11-17T13:21:06.281705+00:00"}
