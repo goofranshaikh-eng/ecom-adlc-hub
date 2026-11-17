@@ -1,0 +1,17 @@
+I'll implement story 03-app from the PER-278 feature. First I'm reading the story, the code-context graph, and the local skill notes so the change stays inside that scope.
+The story is a checkout consumer that clears the cart after `OrderCreated`, with retry and checkout-only database access. I'll look at the existing checkout service and match that pattern.
+Checkout already has the database handle, RabbitMQ helpers, and `pika`. I'll read the relay and cart delete path so the new consumer matches those contracts.
+Checkout already owns `checkout_db` and the RabbitMQ helpers. I'll add an `OrderCreated` consumer that clears the cart with retries, and wire it into app startup.
+The ack helper dropped the `delivery_tag` parameter name, so the consumer’s keyword call failed. I’ll restore that name and rerun the tests.
+Checkout now clears the cart when an `OrderCreated` message arrives, and retries a failed delete before it gives up.
+
+An `OrderCreated` message on `order.created.queue` looks up the checkout in `checkout_db.checkouts` by `payment_reference`. A new message sets the status to `order_created` and stores `order_id`, then calls `DELETE /cart/{cart_id}`. Success (204 or 404) sets the status to `cart_cleared`. A 500, 503, or network error waits 5s, 10s, and 20s, up to 3 retries. If those attempts all fail, the status stays `order_created` and the failure is logged. A repeat message for `order_created` or `cart_cleared` is acknowledged and does not delete the cart again. The consumer only reads and writes `checkout_db`.
+
+The app starts that consumer on startup. The existing RabbitMQ helper and `checkouts` collection were already in place, so those files were left as they are.
+
+`pytest checkout/tests` — 30 passed.
+
+Files changed:
+- `checkout/consumers.py` (new)
+- `checkout/main.py`
+- `checkout/tests/test_distributed_checkout.py` (new)The environment search finished. Python 3.10 is installed under the local uv directory, and `pika` was not present until it was installed for the checkout tests. Those tests already passed: 30 passed.
