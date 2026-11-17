@@ -1,0 +1,11 @@
+I'll start by reading the story and the repo code context so the change stays inside what PER-278 story 05-app asks for.
+The story adds a checkout status response and a `GET /checkout/{checkout_id}` endpoint. I'll match the existing checkout models, routes, and tests before writing that.
+Checkout already stores status and order id. I'll add the status response model, the GET endpoint, and the tests the story lists.
+The listed status cases are in place. I'll also lock the order-id rule and the database-failure response, then run the checkout tests.
+`GET /checkout/{checkout_id}` now returns how a checkout finished, including the order id once an order exists.
+
+- **`checkout/models.py`** — `CheckoutStatusResponse` has `checkout_id`, `status` (`accepted`, `order_created`, `cart_cleared`, or `refunded`), optional `order_id`, and `created_at`. `order_id` is required when the status is `order_created` or `cart_cleared`.
+- **`checkout/routes.py`** — The new endpoint reads `checkouts_collection` by `checkout_id`. A missing checkout is 404. A database error is 500 with `Database query failed`. A missing `status` defaults to `accepted`. A missing `created_at` is `1970-01-01T00:00:00Z`.
+- **`checkout/tests/test_checkout.py`** — Covers the four statuses, a missing checkout, missing `created_at`, a missing `status`, the order-id rule, and the database failure.
+
+Checkout tests: 40 passed.
