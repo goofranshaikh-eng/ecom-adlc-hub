@@ -12,18 +12,18 @@ Checkout becomes async and resilient through an outbox, RabbitMQ, and event-driv
 
 ## Steps
 
-1. [ ] **analyst (requirements)** — Turn the detailed ticket into formal requirements with Given/When/Then acceptance criteria.
+1. [x] **analyst (requirements)** — Turn the detailed ticket into formal requirements with Given/When/Then acceptance criteria.
    - focus: Keep all eight acceptance criteria; emphasize the distributed transaction boundaries, idempotency, and the completion window for refunds.
-2. [ ] **architect (hld)** — New async contract between checkout, order, and payment via RabbitMQ; outbox pattern; schema for OrderRequested, OrderCreated, RefundRequested messages.
+2. [x] **architect (hld)** — New async contract between checkout, order, and payment via RabbitMQ; outbox pattern; schema for OrderRequested, OrderCreated, RefundRequested messages.
    - focus: Define the message schemas, the outbox table, the completion window, and the RabbitMQ topology. Address idempotency at checkout and order. Keep HTTP for cart and payment where the ticket says so.
-3. [ ] **scrum_master (breakdown)** — The work splits into at least checkout outbox+publish, order consume+create, cart delete retry, refund logic, and status endpoint.
+3. [x] **scrum_master (breakdown)** — The work splits into at least checkout outbox+publish, order consume+create, cart delete retry, refund logic, and status endpoint.
    - focus: Break down by service slice: checkout database and outbox, relay, order consumer, cart retry, payment refund, checkout status API.
-4. [ ] **designer (lld)** — Each story needs concrete file-by-file plans for the outbox schema, RabbitMQ setup, message handlers, and retry logic.
+4. [x] **designer (lld)** — Each story needs concrete file-by-file plans for the outbox schema, RabbitMQ setup, message handlers, and retry logic.
    - focus: Show the outbox table DDL, the RabbitMQ exchange and queue config, the publish relay, and the idempotency checks in checkout and order.
-5. [ ] **test_architect (tests)** — Eight acceptance criteria with edge cases: payment refused, order service down, duplicate checkout, cart delete retry, refund, status fetch.
+5. [x] **test_architect (tests)** — Eight acceptance criteria with edge cases: payment refused, order service down, duplicate checkout, cart delete retry, refund, status fetch.
    - focus: Map each AC to test cases; include timeout scenarios for the completion window and duplicate message delivery.
-6. [ ] **merge_pack (pack)** _(auto)_ — Loop feature_with_architecture: Deterministic merged_plan.md from ordered specs and story summaries.
-7. [ ] **critic (consistency_check)** — Requirements, HLD, breakdown, stories, and tests must all agree on the message schemas, idempotency keys, and service boundaries.
+6. [x] **merge_pack (pack)** _(auto)_ — Loop feature_with_architecture: Deterministic merged_plan.md from ordered specs and story summaries.
+7. [x] **critic (consistency_check)** — Requirements, HLD, breakdown, stories, and tests must all agree on the message schemas, idempotency keys, and service boundaries.
 8. [ ] **architect_gate (review)** _(auto)_ — Human approval of specs and this plan before Dev.
 9. [ ] **dev** _(auto)_ — Loop delivery.
 10. [ ] **pre_pr_qa** _(auto)_ — Loop delivery.
