@@ -1,0 +1,431 @@
+{
+  "items": [
+    {
+      "id": "C1",
+      "file": "hld.md",
+      "section": "## Message Schemas",
+      "quote": "\"price_snapshot_minor_units\": 1500",
+      "match": [],
+      "problem": "The HLD's `OrderRequested` message schema shows `price_snapshot_minor_units` matching the checkout outbox, but the order service's existing schema uses `price_minor_units`. The HLD does not state in the message schema section that the consumer must map this field on insert.",
+      "change": "In the `OrderRequested` message schema, add a field note: `price_snapshot_minor_units` (integer, required): Mapped to `price_minor_units` in the order document on insert.",
+      "status": "fixed",
+      "reason": "confirmed in round 2",
+      "round": 1,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": true,
+      "blocks_because": "Dev would name the field `price_snapshot_minor_units` in the `OrderRequested` message payload but the order service expects `price_minor_units` in the database, and the HLD says the consumer should map `price_snapshot_minor_units` to `price_minor_units` on insert. The HLD message schema shows `price_snapshot_minor_units` but does not state the mapping explicitly in the schema section, only in story 2's LLD. Dev reading the HLD alone would not know to rename the field.",
+      "trail": [
+        "round 1: raised (blocking)",
+        "round 1: unchecked: fixed in `hld.md`, not checked yet",
+        "round 2: fixed: confirmed in round 2"
+      ],
+      "fix_rounds": [
+        1
+      ],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C2",
+      "file": "specs/1.md",
+      "section": "",
+      "quote": "price_snapshot_minor_units: int",
+      "match": [
+        [
+          "hld.md",
+          "## Message Schemas \u203a OrderRequested"
+        ]
+      ],
+      "problem": "The breakdown's story 2 schema lists `price_snapshot_minor_units` but does not state the field must be renamed to `price_minor_units` on insert.",
+      "change": "In story 2's schema section, add a field note below `price_snapshot_minor_units`: \"Mapped to `price_minor_units` in the order document (see `repo-file/app/order/models.js`).\"",
+      "status": "fixed",
+      "reason": "no longer raised in round 2",
+      "round": 1,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": false,
+      "blocks_because": "The breakdown lists `price_snapshot_minor_units: int` in the `OrderRequested` schema but does not state that the order service must map it to `price_minor_units` when inserting. Dev would see the schema, build the consumer to store the field as given, and the order document would have the wrong field name, breaking the existing `GET /orders/{order_id}` endpoint which returns `price_minor_units`.",
+      "trail": [
+        "round 1: raised (blocking)",
+        "round 1: moved from `breakdown.md`: the quoted text is in `specs/1.md`",
+        "round 1: fix failed: fix refused: would drop sections: [atomic_write] insert checkout + outbox in one write (verify mongodb transaction support), after payment accepts:",
+        "round 2: fixed: no longer raised in round 2"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C2-2",
+      "file": "stories/01-app.md",
+      "section": "LLD \u2014 Story 01-app \u203a File Plan \u203a Modified Files",
+      "quote": "price_snapshot_minor_units: int",
+      "match": [
+        [
+          "hld.md",
+          "## Message Schemas \u203a OrderRequested"
+        ]
+      ],
+      "problem": "The breakdown's story 2 schema lists `price_snapshot_minor_units` but does not state the field must be renamed to `price_minor_units` on insert.",
+      "change": "In story 2's schema section, add a field note below `price_snapshot_minor_units`: \"Mapped to `price_minor_units` in the order document (see `repo-file/app/order/models.js`).\"",
+      "status": "fixed",
+      "reason": "confirmed in round 2",
+      "round": 1,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": false,
+      "blocks_because": "The breakdown lists `price_snapshot_minor_units: int` in the `OrderRequested` schema but does not state that the order service must map it to `price_minor_units` when inserting. Dev would see the schema, build the consumer to store the field as given, and the order document would have the wrong field name, breaking the existing `GET /orders/{order_id}` endpoint which returns `price_minor_units`.",
+      "trail": [
+        "round 1: raised (blocking)",
+        "round 1: moved from `breakdown.md`: the quoted text is in `specs/1.md`",
+        "round 1: moved from `breakdown.md`: the quoted text is in `stories/01-app.md`",
+        "round 1: unchecked: fixed in `stories/01-app.md`, not checked yet",
+        "round 2: fixed: confirmed in round 2"
+      ],
+      "fix_rounds": [
+        1
+      ],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C2",
+      "file": "specs/2.md",
+      "section": "## Schema/API Contracts",
+      "quote": "Field Notes:**",
+      "match": [
+        [
+          "hld.md",
+          "## Message Schemas \u203a OrderRequested"
+        ]
+      ],
+      "problem": "The field note for `lines[].price_snapshot_minor_units` now reads \"Mapped to `price_minor_units` in the order document on insert (see HLD).\" The HLD section says \"see `repo-file/app/order/models.js` and `repo-file/app/order/routes.js`\". The spec pointer is less specific than the HLD.",
+      "change": "Change the note to say \"Mapped to `price_minor_units` in the order document on insert (see `repo-file/app/order/models.js`).\" to match the HLD's concrete file reference.",
+      "status": "note",
+      "reason": "the critic marked it a note",
+      "round": 3,
+      "decision": "",
+      "severity": "note",
+      "code_claim": true,
+      "blocks_because": "",
+      "trail": [
+        "round 2: raised (blocking)",
+        "round 2: unchecked: fixed in `specs/2.md`, not checked yet",
+        "round 3: raised again (note)",
+        "round 3: note: the critic marked it a note"
+      ],
+      "fix_rounds": [
+        2
+      ],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C3",
+      "file": "stories/02-app.md",
+      "section": "## Algorithm Notes",
+      "quote": "price_snapshot_minor_units: line.price_snapshot_minor_units",
+      "match": [],
+      "problem": "The LLD's data mapping algorithm maps `line.price_snapshot_minor_units` to `orderLine.price_snapshot_minor_units`, but the order schema in `repo-file/app/order/models.js` uses `price_minor_units`.",
+      "change": "In the data mapping code, change `price_snapshot_minor_units: line.price_snapshot_minor_units` to `price_minor_units: line.price_snapshot_minor_units  // rename`.",
+      "status": "outdated",
+      "reason": "its quote is in no spec file",
+      "round": 1,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": true,
+      "blocks_because": "Dev following the LLD would map the message's `price_snapshot_minor_units` to the order document's `price_snapshot_minor_units`, but the existing order schema uses `price_minor_units`. The order document would have the wrong field name, and the HTTP API would break because it expects `price_minor_units`.",
+      "trail": [
+        "round 1: raised (blocking)",
+        "round 1: outdated: its quote is in no spec file"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C3",
+      "file": "specs/1.md",
+      "section": "## File-by-File Changes \u203a checkout/routes.py",
+      "quote": "Insert both to MongoDB atomically (checkout first, then outbox; rollback checkout on outbox failure)",
+      "match": [
+        [
+          "hld.md",
+          "## Algorithm Notes \u203a Atomic Insert: Checkout + Outbox"
+        ]
+      ],
+      "problem": "The spec shows the new code (checkout + outbox insert with rollback) but does not show the \"Before\" code it replaces.",
+      "change": "In the \"checkout/routes.py\" section, add a \"Before (payment success block):\" code block showing the existing order creation and cart deletion (lines 90\u2013115 from `repo-file/app/checkout/routes.py`). Then show the \"After:\" code block with the checkout + outbox insert.",
+      "status": "note",
+      "reason": "new in a re-check, in text no fix touched",
+      "round": 2,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": false,
+      "blocks_because": "The spec says \"insert both atomically\" and shows a try-except block with rollback, but the \"Before\" code block is missing. Dev would not know what code to replace. The spec must show the existing code that creates the order and deletes the cart (lines 90\u2013115 in `repo-file/app/checkout/routes.py`) so Dev knows where to insert the new logic.",
+      "trail": [
+        "round 2: raised (blocking)",
+        "round 2: note: new in a re-check, in text no fix touched"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C4",
+      "file": "hld.md",
+      "section": "## Service Interaction Contracts",
+      "quote": "POST http://localhost:8005/charge",
+      "match": [],
+      "problem": "The HLD states \"Payment generates a unique reference per charge. Checkout does not retry the charge; a repeated checkout submission reuses the same payment reference if the checkout already exists.\" This implies checkout sends a stable `payment_reference` to payment, but the existing `POST /charge` endpoint does not accept or use an idempotency key. Payment generates a fresh reference on every call.",
+      "change": "In the HLD's Service Interaction Contracts section, state: \"Payment generates a unique reference per charge (no idempotency key accepted in v1). Checkout detects duplicates by querying its own database after payment returns the reference. Mark this as `[IDEMPOTENCY_DEFERRED]`.\" Update the idempotency algorithm in story 1's LLD to query the checkout database after payment accepts, not before.",
+      "status": "fixed",
+      "reason": "confirmed in round 2",
+      "round": 1,
+      "decision": "Payment service does not accept an idempotency key in v1. Checkout will query its own database by payment_reference after payment accepts to detect duplicate submissions, rather than sending a stable key to payment.",
+      "severity": "blocking",
+      "code_claim": true,
+      "blocks_because": "The HLD says the payment endpoint accepts an idempotency key (`payment_reference`) but the existing payment service does not. Dev would build the checkout to send a `payment_reference` field in the charge request, but the payment service would ignore it, and duplicate checkout submissions would charge twice. The HLD's idempotency design depends on the payment service accepting and honoring this key, which it does not in v1.",
+      "trail": [
+        "round 1: raised (blocking)",
+        "round 1: the fixer decided: Payment service does not accept an idempotency key in v1. Checkout will query its own database by payment_reference after payment accepts to detect duplicate submissions, rather than sending a stable key to payment.",
+        "round 1: unchecked: fixed in `hld.md`, not checked yet",
+        "round 2: fixed: confirmed in round 2"
+      ],
+      "fix_rounds": [
+        1
+      ],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C4",
+      "file": "specs/1.md",
+      "section": "### Idempotency: Duplicate Checkout Submission",
+      "quote": "Revised Idempotency Check (after payment call):**\n```python\n# After payment accepts:\npayment_reference = payment_data[\"reference\"]\n\nexisting_checkout = checkouts_collection.find_one({\"payment_reference\": payment_reference})\nif existing_checkout:\n    if existing_checkout[\"status\"] in [\"accepted\", \"order_created\", \"cart_cleared\"]:\n        return CheckoutCreateResponse(\n            checkout_id=existing_checkout[\"checkout_id\"],\n            status=\"accepted\"\n        )\n    elif existing_checkout[\"status\"] == \"refunded\":\n        raise HTTPException(status_code=400, detail=\"Checkout was refunded, cannot retry\")\n```",
+      "match": [
+        [
+          "hld.md",
+          "## Data Flow: Accepted Checkout \u2192 Order Created \u2192 Cart Cleared"
+        ]
+      ],
+      "problem": "The \"Revised Idempotency Check\" algorithm says the query runs after payment accepts, but the \"checkout/routes.py\" file changes section says the check is added at line 73 (which is after payment accepts) but the code shown queries the database and then returns early **before** the insert. The insert happens later at line 90. The spec does not say whether the check is before or after the insert, so Dev cannot tell if the insert runs first (and then the check is redundant) or the check runs first (and prevents the insert).",
+      "change": "In the \"checkout/routes.py\" section, clarify that the idempotency check runs **before** the insert. Add a note: \"Query `checkouts_collection` by `payment_reference` before inserting. If a checkout exists for this payment reference, return the existing checkout and do not insert again.\"",
+      "status": "open",
+      "reason": "found in the last read; no round left to fix it",
+      "round": 3,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": true,
+      "blocks_because": "The code block says the check happens after payment accepts, but the modified `checkout/routes.py` section at line 52 says \"Add idempotency check after payment accepts (line 73):\" and then shows the check placed **before** the checkout and outbox insert. Dev would read the idempotency algorithm and see it queries after getting `payment_reference`, but then read the file changes and place the check before the insert. The two sections disagree on when the query runs relative to the insert.",
+      "trail": [
+        "round 2: raised (blocking)",
+        "round 2: fix failed: fix refused: section `### `checkout/routes.py`` is not in the file exactly once",
+        "round 3: raised again (blocking)",
+        "round 3: open: found in the last read; no round left to fix it"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "inline-4598828214",
+      "pr_path": "features/PER-278/specs/1.md",
+      "pr_line": 1,
+      "pr_seen": []
+    },
+    {
+      "id": "C5",
+      "file": "stories/01-app.md",
+      "section": "## Algorithm Notes",
+      "quote": "payment_reference = body.cart_id",
+      "match": [
+        [
+          "hld.md",
+          "## Algorithm Notes \u203a Idempotency: Duplicate Checkout Submission"
+        ]
+      ],
+      "problem": "Story 1's LLD states `payment_reference = body.cart_id` (line 227 in the idempotency check code), but the HLD says `payment_reference = payment_data[\"reference\"]` (returned by payment after accepting).",
+      "change": "In story 1's LLD, replace the assumption `payment_reference = body.cart_id` with `payment_reference = payment_data[\"reference\"]` (after payment accepts). Move the idempotency check to after the payment call, not before.",
+      "status": "outdated",
+      "reason": "its quote is in no spec file",
+      "round": 1,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": false,
+      "blocks_because": "Story 1's LLD says `payment_reference` is derived from `cart_id`, but the HLD says `payment_reference` is returned by the payment service after accepting the charge. Dev would generate `payment_reference = str(uuid.uuid4())` before calling payment and send it as an idempotency key, but payment does not accept one (see C4). The LLD's assumption contradicts both the HLD and the existing payment API.",
+      "trail": [
+        "round 1: raised (blocking)",
+        "round 1: outdated: its quote is in no spec file"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C5",
+      "file": "specs/1.md",
+      "section": "## Risks \u203a R3: Checkout and outbox insert is not atomic",
+      "quote": "Insert checkout first, then outbox; on outbox failure, delete the checkout record (rollback).",
+      "match": [
+        [
+          "stories/01-app.md",
+          "## Algorithm Notes \u203a Atomic Insert: Checkout + Outbox"
+        ]
+      ],
+      "problem": "The risk section describes the rollback strategy, but the code block does not implement it.",
+      "change": "In the \"checkout/routes.py\" section's \"After:\" code block, wrap the outbox insert in a second try-except. On `PyMongoError`, delete the checkout record (`checkouts_collection.delete_one({\"checkout_id\": checkout_id})`) before raising the 500 error.",
+      "status": "note",
+      "reason": "new in a re-check, in text no fix touched",
+      "round": 2,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": false,
+      "blocks_because": "The spec says \"insert checkout first, then outbox; on outbox failure, delete the checkout record\" and marks it `[ATOMIC_WRITE_DEFERRED]`, but the \"After\" code block in the \"checkout/routes.py\" section does not show the rollback delete. Dev would insert the checkout, fail on the outbox, and leave the checkout record in the database with no outbox row. The charge is accepted but no order will ever be created.",
+      "trail": [
+        "round 2: raised (blocking)",
+        "round 2: note: new in a re-check, in text no fix touched"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C6",
+      "file": "hld.md",
+      "section": "## Open Questions",
+      "quote": "What is the duration of the completion window for refunds?",
+      "match": [
+        [
+          "breakdown.md",
+          "## Story 4"
+        ]
+      ],
+      "problem": "The HLD lists \"What is the duration of the completion window for refunds?\" as an open question, but the breakdown and story 4 state the default is 5 minutes (configurable via `COMPLETION_WINDOW_SECONDS`).",
+      "change": "(none; this is a note for the gate)",
+      "status": "note",
+      "reason": "the critic marked it a note",
+      "round": 1,
+      "decision": "",
+      "severity": "note",
+      "code_claim": false,
+      "blocks_because": "(not blocking)",
+      "trail": [
+        "round 1: raised (note)",
+        "round 1: note: the critic marked it a note"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C6",
+      "file": "stories/02-app.md",
+      "section": "## Algorithm Notes \u203a Data Mapping: `OrderRequested` \u2192 Order Document",
+      "quote": "line.price_snapshot_minor_units \u2192 orderLine.price_minor_units (rename field)",
+      "match": [
+        [
+          "hld.md",
+          "## Message Schemas \u203a OrderRequested"
+        ]
+      ],
+      "problem": "None. The LLD correctly states the field is renamed. This item is a note to verify the mapping is implemented.",
+      "change": "(none)",
+      "status": "note",
+      "reason": "the critic marked it a note",
+      "round": 2,
+      "decision": "",
+      "severity": "note",
+      "code_claim": false,
+      "blocks_because": "(not blocking; this is correct and already stated in the LLD)",
+      "trail": [
+        "round 2: raised (note)",
+        "round 2: note: the critic marked it a note"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C7",
+      "file": "specs/1.md",
+      "section": "[ATOMIC_WRITE] Insert checkout + outbox in one write (verify MongoDB transaction support)",
+      "quote": "Insert checkout + outbox in one write",
+      "match": [
+        [
+          "hld.md",
+          "## Algorithm Notes \u203a Atomic Insert: Checkout + Outbox"
+        ]
+      ],
+      "problem": "The breakdown states the write is atomic but does not mention the fallback strategy when transactions are unavailable.",
+      "change": "In the breakdown's story 1 implementation pointers, state: \"Insert checkout first, then outbox; on outbox failure, delete the checkout record (rollback). MongoDB transactions are not supported in v1 (standalone instance). Mark as `[ATOMIC_WRITE_DEFERRED]`.\"",
+      "status": "fixed",
+      "reason": "no longer raised in round 2",
+      "round": 1,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": false,
+      "blocks_because": "The breakdown says \"insert checkout + outbox in one write (atomic)\" but the HLD states MongoDB transactions require a replica set, and the existing URI is `mongodb://localhost:27017` (standalone). Dev would attempt a transaction, fail, and get stuck. The HLD provides a fallback (insert checkout first, then outbox, with manual rollback on failure), but the breakdown does not mention this.",
+      "trail": [
+        "round 1: raised (blocking)",
+        "round 1: moved from `breakdown.md`: the quoted text is in `specs/1.md`",
+        "round 1: fix failed: fix refused: would drop sections: [atomic_write] insert checkout + outbox in one write (verify mongodb transaction support), after payment accepts:",
+        "round 2: fixed: no longer raised in round 2"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    },
+    {
+      "id": "C7",
+      "file": "stories/01-app.md",
+      "section": "## Tests \u203a Test 3: `test_repeated_checkout_returns_existing_checkout()",
+      "quote": "# Only one payment charge\npayment_calls = [call for call in calls if call[1].endswith(\"/charge\")]\nassert len(payment_calls) == 2  # Both POSTs called payment, but second checkout was not inserted",
+      "match": [
+        [
+          "breakdown.md",
+          "## Story 1 \u203a ### Test 3"
+        ]
+      ],
+      "problem": "The test comment says \"both POSTs called payment, but second checkout was not inserted\", but the breakdown's AC4 says \"no second charge is made\". The test asserts two payment calls, so two charges are made (payment returns a reference for each call). The idempotency check prevents the second **insert**, not the second **charge**. The test would pass but AC4 would fail.",
+      "change": "Add a note in the test: \"[KNOWN_GAP] The second POST calls payment again and creates a second charge. The idempotency check prevents the second insert, but the charge is not prevented. This violates AC4 (no second charge). Mark this as `[IDEMPOTENCY_DEFERRED]` and add a TODO to fix payment idempotency in a future ticket.\"",
+      "status": "note",
+      "reason": "new in a re-check, in text no fix touched",
+      "round": 3,
+      "decision": "",
+      "severity": "blocking",
+      "code_claim": false,
+      "blocks_because": "The test asserts `len(payment_calls) == 2` but the idempotency check (from C4) runs after payment accepts, so both POSTs call payment and get the same reference. The second POST then queries the database, finds the existing checkout, and returns it without inserting again. The assertion comment says \"both POSTs called payment, but second checkout was not inserted\", which is correct behavior. However, the test comment implies the second POST should **not** call payment, but the code shown calls payment both times. Dev would write the test with `assert len(payment_calls) == 2` and pass it, but the breakdown says the idempotency prevents a second **charge**, not a second payment call. The test and the breakdown disagree.",
+      "trail": [
+        "round 3: raised (blocking)",
+        "round 3: note: new in a re-check, in text no fix touched"
+      ],
+      "fix_rounds": [],
+      "pr_comment": "",
+      "pr_path": "",
+      "pr_line": 0,
+      "pr_seen": []
+    }
+  ]
+}
