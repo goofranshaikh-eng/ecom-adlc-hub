@@ -1,0 +1,20 @@
+I'll start by reading the story and the repo's code context so the change stays inside what PER-278 story 04-app asks for.
+The story is a payment-side refund consumer. I'll look at the existing payment and checkout code so the new pieces match how this service already works.
+The completion checker already requests a refund when the window expires. I'll add the payment consumer that applies that refund, and tests that follow the existing mocked style so they can run without a live broker.
+A charge is refunded when payment receives `RefundRequested`. The checkout completion checker already inserts that event and sets the checkout to `refund_pending` once the completion window passes, so that file was left as it is.
+
+Payment now consumes `payment.refund.requested` on `ecom.events`. For a valid message it loads the charge from `payment_db.charges` by `reference`, sets `status` to `refunded` and `refunded_at` to now, then acknowledges. A charge that is already refunded, or missing, is acknowledged and left unchanged. An invalid body is rejected without requeue. A database error is requeued. The consumer starts with the FastAPI app and runs the blocking client on a worker thread so the event loop stays free.
+
+`ChargeResponse.status` now includes `refunded`. `pika` is in the payment requirements.
+
+Payment tests: 14 passed. Checkout tests: 31 passed. The new tests call the consumer and the completion checker directly with the suite’s mocked database, so they do not need a live broker.
+
+Files changed:
+- `payment/consumers.py` (new)
+- `payment/rabbitmq_config.py` (new)
+- `payment/tests/test_refund_consumer.py` (new)
+- `payment/main.py`
+- `payment/models.py`
+- `payment/db.py`
+- `payment/requirements.txt`
+- `checkout/tests/test_checkout.py`The background search for a Python interpreter was stopped. The payment and checkout tests had already been run with the system Python, and both suites passed.

@@ -126,3 +126,7 @@
 2026-11-17T13:05:05.594348+00:00 dev cursor 03-app usage model=Auto Balance in=245091 out=34978 cache_read=1868928 cache_write=0 ms=603916
 2026-11-17T13:05:05.595015+00:00 warning: no test command configured for app; verification skipped
 2026-11-17T13:05:05.595855+00:00 dev verify 03-app PASS attempt=1
+2026-11-17T13:05:08.643566+00:00 dev cursor 04-app attempt=1
+2026-11-17T13:11:47.494678+00:00 dev cursor 04-app usage model=Auto Balance in=117181 out=27878 cache_read=935168 cache_write=0 ms=392131
+2026-11-17T13:11:47.510400+00:00 warning: no test command configured for app; verification skipped
+2026-11-17T13:11:47.514147+00:00 dev verify 04-app PASS attempt=1
